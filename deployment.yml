@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: nzngarage-backend
+spec:
+ replicas: 1
+ selector:
+     matchLabels:
+       app: nzngarage-backend
+ template:
+   metadata:
+     labels:
+       app: nzngarage-backend
+   spec:     # pod spec                  
+     containers:
+     - name: nzngarage-backend
+       image: us.icr.io/nzngarage/nzngarage-backend:latest
+       ports:
+         - containerPort: 8080
+       imagePullPolicy: Always
