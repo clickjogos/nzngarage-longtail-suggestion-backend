@@ -2,13 +2,13 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: nzngarage-backend
-  name: nzngarage-backend-service
+    app: nzngarage-longtail-suggestion-backend
+  name: nzngarage-longtail-suggestion-backend-service
 spec:
   ports:
   - port: 8080
     protocol: TCP
     targetPort: 8080
   selector:
-    app: nzngarage-backend
-  type: NodePort
+    app: nzngarage-longtail-suggestion-backend
+  type: LoadBalancer
