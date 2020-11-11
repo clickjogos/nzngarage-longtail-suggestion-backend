@@ -11,6 +11,8 @@ let appEnv = cfenv.getAppEnv()
 //Import route files
 const rootRoutes = require('./routes/rootRoutes')
 const competitorsRoutes = require('./routes/competitorsRoutes')
+const longtailsroutes = require('./routes/longtailsroutes')
+
 //Data parsers for the request body
 app.use(express.json())
 
@@ -25,6 +27,7 @@ app.use((error, req, res, next) => {
 //Define the route files here
 app.use('/backend2', rootRoutes)
 app.use('/backend2/competitors', competitorsRoutes)
+app.use('/backend2/longtail', longtailsroutes)
 
 //Starts the application server 
 const port = process.env.port || 6005;
