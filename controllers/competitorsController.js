@@ -1,4 +1,4 @@
-const mongodbConnector = require("../connectors/mongoDbConnector.js");
+const mongodbConnector = require("../connectors/mongodbConnector.js");
 const _ = require("lodash");
 //
 async function getCompetitorsList (params) {
