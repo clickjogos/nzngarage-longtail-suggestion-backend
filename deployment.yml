@@ -17,4 +17,20 @@ spec:
        image: us.icr.io/nzngarage/nzngarage-longtail-suggestion-backend:latest
        ports:
          - containerPort: 6005
+       env:
+          - name: MONGO_DB_URL
+            valueFrom:
+              secretKeyRef:
+                name: mongo-secret
+                key: mongoURL
+          - name: MONGO_DB_NAME
+            valueFrom:
+              secretKeyRef:
+                name: mongo-secret
+                key: mongoName
+          - name: MONGO_DB_CERTIFICATE
+            valueFrom:
+              secretKeyRef:
+                name: mongo-secret
+                key: mongoCA
        imagePullPolicy: Always
