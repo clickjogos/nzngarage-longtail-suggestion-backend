@@ -23,11 +23,11 @@ app.use((error, req, res, next) => {
 })
 
 //Define the route files here
-app.use('/', rootRoutes)
-app.use('/competitors', competitorsRoutes)
+app.use('/backend2', rootRoutes)
+app.use('/backend2/competitors', competitorsRoutes)
 
 //Starts the application server 
-const port = process.env.port || 8080;
+const port = process.env.port || 6005;
 app.listen(port, function () {
     console.log("Server running at: http://localhost:" + port);
 })

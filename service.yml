@@ -6,9 +6,9 @@ metadata:
   name: nzngarage-longtail-suggestion-backend-service
 spec:
   ports:
-  - port: 8080
+  - port: 80
     protocol: TCP
-    targetPort: 8080
+    targetPort: 6005
   selector:
     app: nzngarage-longtail-suggestion-backend
   type: LoadBalancer

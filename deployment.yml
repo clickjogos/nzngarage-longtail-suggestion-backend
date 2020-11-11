@@ -16,5 +16,5 @@ spec:
      - name: nzngarage-longtail-suggestion-backend
        image: us.icr.io/nzngarage/nzngarage-longtail-suggestion-backend:latest
        ports:
-         - containerPort: 8080
+         - containerPort: 6005
        imagePullPolicy: Always
