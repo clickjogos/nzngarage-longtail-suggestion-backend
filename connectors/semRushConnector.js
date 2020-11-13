@@ -18,35 +18,6 @@ let options = {
     }
 }
 
-async function getSemRushResponse(){ 
-    try {
-   
-        
-        
-        let options = {
-            method: 'GET',
-            headers: HEADERS,
-            url: BASE_URL ,            
-            params: {
-                key: IAM_APIKEY,
-                display_limit: 1,
-                type: "domain_domains",
-                database: "br",
-                domains:"*|or|canaltech.com.br|*|or|tecmundo.com.br",
-                export_columns: 'Ph,P0,P1,P2,P3,P4,Nr,Cp,Nq,Kd,Co,Td',
-
-            }
-        }
-        
-        let response_scoring = await axios(options)        
-        return response_scoring.data
-        
-    } catch (error) {
-         // "Failed to recieve scoring model" 
-        throw(error.message)
-    }
-}
-
 exports.domainVsDomains = async (payload) =>{
     try {
         options.params['type'] = 'domain_domains'
@@ -69,11 +40,12 @@ exports.organicResults = async (payload) =>{
     try {
         options.params['type'] = 'phrase_organic'
 
-        options.params['domains'] = payload.domains
+        options.params['phrase'] = payload.phrase
         options.params['display_limit'] = payload.displayLimit
         options.params['export_columns'] = payload.exportColumns
 
-        let semRushResponse = await axios(options)        
+        let semRushResponse = await axios(options)     
+        console.log(semRushResponse.data)    
         return semRushResponse.data
 
     } catch (error) {

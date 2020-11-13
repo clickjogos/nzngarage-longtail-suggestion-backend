@@ -33,4 +33,9 @@ spec:
               secretKeyRef:
                 name: mongo-secret
                 key: mongoCA
+          - name: SEMRUSH_APIKEY
+            valueFrom:
+              secretKeyRef:
+                name: semrush-secret
+                key: semrushApiKey
        imagePullPolicy: Always
