@@ -249,7 +249,6 @@ async function getURlTitle(organicResults) {
 
 async function saveOrganicResults(organicResults) {
 	try {
-
 		let savedDocuments = organicResults.map(async (item) => {
 			let competitor = Object.keys(item)[0]
 			let keywords = Object.values(item)[0]

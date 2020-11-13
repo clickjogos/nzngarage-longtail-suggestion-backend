@@ -1,0 +1,43 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: runsemrush-job
+spec:
+  # schedule: "0 0 * * 0"
+  schedule: "* */1 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: runsemrush-job
+            image: us.icr.io/nzngarage/runsemrush-job:latest
+            volumeMounts:
+            - name: tz-config
+              mountPath: /etc/localtime
+            env:
+                - name: MONGO_DB_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongo-secret
+                      key: mongoURL
+                - name: MONGO_DB_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongo-secret
+                      key: mongoName
+                - name: MONGO_DB_CERTIFICATE
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongo-secret
+                      key: mongoCA
+                - name: SEMRUSH_APIKEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: semrush-secret
+                      key: semrushApiKey
+          volumes:
+            - name: tz-config
+              hostPath:
+                path: /usr/share/zoneinfo/America/Sao_Paulo
+          restartPolicy: Never

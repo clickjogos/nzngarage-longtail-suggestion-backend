@@ -10,7 +10,7 @@ let appEnv = cfenv.getAppEnv()
 
 //Import route files
 const rootRoutes = require('./routes/rootRoutes')
-const competitorsRoutes = require('./routes/competitorsRoutes')
+const competitorsRoutes = require('./routes/competitorsRoutes');
 
 //Data parsers for the request body
 app.use(express.json())
