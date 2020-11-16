@@ -7,75 +7,67 @@ const { save, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
 const semRushCollection = 'semrush-results'
 
-const rawDomainsComparison =
-	'Keyword;Number of Results;Search Volume;tecmundo.com.br;canaltech.com.br;tecnoblog.net;olhardigital.com.br\r\nairbnb;177000000;1830000;46;2;11;33\r\nsamsung;97;1500000;7;4;27;24\r\ninstagram entrar;552000000;1000000;58;3;4;44\r\na50;102000000;823000;24;4;12;57\r\npaypal;1160000000;823000;30;4;15;7\r\npiratebay;7160000;823000;6;2;1;4\r\ntelegram web;531000000;673000;15;3;8;93\r\nredmi note 7;384000000;550000;22;3;24;56\r\na70;75800000;450000;29;4;25;61\r\ngalaxy s10;290000000;450000;43;4;10;46\r\n'
+// const rawDomainsComparison = "Keyword;Number of Results;Search Volume;tecmundo.com.br;canaltech.com.br;techtudo.com.br;tecnoblog.net;olhardigital.com.br\r\nmsn;306000000;4090000;7;4;10;30;13\r\nairbnb;219000000;1830000;50;2;19;13;28\r\ninstagram entrar;796000000;1000000;63;3;6;4;48\r\na50;90300000;823000;26;4;10;18;55\r\npaypal;1510000000;823000;11;3;2;9;7\r\npiratebay;5420000;823000;6;2;14;1;3\r\niphone 6s;89;673000;16;3;7;17;19\r\ntelegram web;639000000;673000;18;3;13;9;85\r\na70;61600000;450000;27;3;10;15;59\r\nmoto g8 power;95;450000;45;4;13;17;53\r\n"
 
-const organicResultsByKeyword = [
-	{
-		keyword: 'airbnb',
-		position: 2,
-		results:
-			'Domain;Url;SERP Features\r\nairbnb.com.br;https://www.airbnb.com.br/;1,4,5,6\r\ncanaltech.com.br;https://canaltech.com.br/curiosidades/Airbnb-Plataforma-de-de-hospedagens-traz-opcoes-para-todo-o-tipo-de-turista/;1,4,5',
-	},
-	{
-		keyword: 'samsung',
-		position: 4,
-		results:
-			'Domain;Url;SERP Features\r\nsamsung.com;https://www.samsung.com/br/;1,3,4,5,6\r\nsamsung.com.br;https://shop.samsung.com.br/;1,3,4,5\r\nzoom.com.br;https://www.zoom.com.br/celular/samsung;1,3,4,5\r\ncanaltech.com.br;https://canaltech.com.br/empresa/samsung/;1,3,4,5',
-	},
-	{
-		keyword: 'instagram entrar',
-		position: 3,
-		results:
-			'Domain;Url;SERP Features\r\ninstagram.com;https://www.instagram.com/?hl=pt-br;6\r\nfacebook.com;https://pt-br.facebook.com/instagram/;7\r\ncanaltech.com.br;https://canaltech.com.br/android/acesse-o-seu-instagram-a-partir-do-facebook-em-smartphones-android/;',
-	},
-	{
-		keyword: 'a50',
-		position: 4,
-		results:
-			'Domain;Url;SERP Features\r\ntudocelular.com;https://www.tudocelular.com/Samsung/fichas-tecnicas/n5315/Samsung-Galaxy-A50.html;5,6\r\nsamsung.com;https://www.samsung.com/br/smartphones/galaxy-a50-a505/SM-A505GZBSZTO/;5\r\nmagazineluiza.com.br;https://www.magazineluiza.com.br/galaxy-a50/celulares-e-smartphones/s/te/sga5/;5,6,7\r\ncanaltech.com.br;https://canaltech.com.br/produto/samsung/galaxy-a50/;5',
-	},
-	{
-		keyword: 'paypal',
-		position: 4,
-		results:
-			'Domain;Url;SERP Features\r\npaypal.com;https://www.paypal.com/br/home;1,6\r\ntechtudo.com.br;http://www.techtudo.com.br/noticias/noticia/2014/07/o-que-e-e-como-funciona-o-paypal.html;1\r\nenotas.com.br;https://enotas.com.br/blog/paypal-como-funciona/;1\r\ncanaltech.com.br;https://canaltech.com.br/e-commerce/o-que-e-o-paypal-saiba-tudo-sobre-a-plataforma-de-pagamentos-155603/;1',
-	},
-	{
-		keyword: 'telegram web',
-		position: 3,
-		results:
-			'Domain;Url;SERP Features\r\ntelegram.org;https://web.telegram.org/;1,6\r\ncelulardireto.com.br;https://www.celulardireto.com.br/telegram-web-como-utilizar-o-app-no-computador/;1\r\ncanaltech.com.br;https://canaltech.com.br/apps/whatsapp-web-telegram-web-comparativo/;1',
-	},
-	{
-		keyword: 'redmi note 7',
-		position: 3,
-		results:
-			'Domain;Url;SERP Features\r\ntudocelular.com;https://www.tudocelular.com/Redmi/fichas-tecnicas/n5182/Redmi-Note-7.html;5,6\r\namazon.com.br;https://www.amazon.com.br/Smartphone-Xiaomi-Redmi-Note-64GB/dp/B07Q8Y75XH;5,7\r\ncanaltech.com.br;https://canaltech.com.br/produto/xiaomi/redmi-note-7/;5',
-	},
-	{
-		keyword: 'a70',
-		position: 4,
-		results:
-			'Domain;Url;SERP Features\r\ntudocelular.com;https://www.tudocelular.com/Samsung/fichas-tecnicas/n5395/Samsung-Galaxy-A70.html;5,6\r\nsamsung.com;https://www.samsung.com/br/smartphones/galaxy-a70-a705/SM-A705MZKJZTO/;5\r\nmagazineluiza.com.br;https://www.magazineluiza.com.br/galaxy-a70/celulares-e-smartphones/s/te/sga7/;5\r\ncanaltech.com.br;https://canaltech.com.br/produto/samsung/galaxy-a70/;5',
-	},
-	{
-		keyword: 'galaxy s10',
-		position: 4,
-		results:
-			'Domain;Url;SERP Features\r\nsamsung.com;https://www.samsung.com/br/smartphones/galaxy-s10/;1,4,5,6\r\ntudocelular.com;https://www.tudocelular.com/Samsung/fichas-tecnicas/n5101/Samsung-Galaxy-S10.html;1,4,5,6\r\nmagazineluiza.com.br;https://www.magazineluiza.com.br/galaxy-s10/celulares-e-smartphones/s/te/gs10/;1,4,5,6\r\ncanaltech.com.br;https://canaltech.com.br/produto/samsung/galaxy-s10/;1,4,5',
-	},
-	{
-		keyword: 'piratebay',
-		position: 1,
-		results: 'Domain;Url;SERP Features\r\ntecnoblog.net;https://tecnoblog.net/10420/alternativas-ao-pirate-bay/;1',
-	},
-]
+// const organicResultsByKeyword = [
+// 	{
+// 	  keyword: "msn",
+// 	  position: 4,
+// 	  results: "Domain;Url;SERP Features\r\nmsn.com;https://www.msn.com/pt-br;1,4,6\r\nwikipedia.org;https://pt.wikipedia.org/wiki/MSN;1,4\r\nwikipedia.org;https://pt.wikipedia.org/wiki/MSN_Messenger;1,4\r\ncanaltech.com.br;https://canaltech.com.br/empresa/msn/;1,4",
+// 	},
+// 	{
+// 	  keyword: "airbnb",
+// 	  position: 2,
+// 	  results: "Domain;Url;SERP Features\r\nairbnb.com.br;https://www.airbnb.com.br/;1,4,5,6\r\ncanaltech.com.br;https://canaltech.com.br/curiosidades/Airbnb-Plataforma-de-de-hospedagens-traz-opcoes-para-todo-o-tipo-de-turista/;1,4,5",
+// 	},
+// 	{
+// 	  keyword: "instagram entrar",
+// 	  position: 3,
+// 	  results: "Domain;Url;SERP Features\r\ninstagram.com;https://www.instagram.com/?hl=pt-br;6\r\nfacebook.com;https://pt-br.facebook.com/instagram/;7\r\ncanaltech.com.br;https://canaltech.com.br/android/acesse-o-seu-instagram-a-partir-do-facebook-em-smartphones-android/;",
+// 	},
+// 	{
+// 	  keyword: "a50",
+// 	  position: 4,
+// 	  results: "Domain;Url;SERP Features\r\ntudocelular.com;https://www.tudocelular.com/Samsung/fichas-tecnicas/n5315/Samsung-Galaxy-A50.html;5,6\r\nsamsung.com;https://www.samsung.com/br/smartphones/galaxy-a50-a505/SM-A505GZBSZTO/;5\r\nmagazineluiza.com.br;https://www.magazineluiza.com.br/galaxy-a50/celulares-e-smartphones/s/te/sga5/;5,6,7\r\ncanaltech.com.br;https://canaltech.com.br/produto/samsung/galaxy-a50/;5",
+// 	},
+// 	{
+// 	  keyword: "iphone 6s",
+// 	  position: 3,
+// 	  results: "Domain;Url;SERP Features\r\ntudocelular.com;https://www.tudocelular.com/Apple/fichas-tecnicas/n2968/Apple-iPhone-6S.html;5,6\r\namericanas.com.br;https://www.americanas.com.br/categoria/celulares-e-smartphones/smartphone/iphone/iphone-6s;5\r\ncanaltech.com.br;https://canaltech.com.br/produto/apple/iphone-6s/;5",
+// 	},
+// 	{
+// 	  keyword: "telegram web",
+// 	  position: 3,
+// 	  results: "Domain;Url;SERP Features\r\ntelegram.org;https://web.telegram.org/;1,6\r\ncelulardireto.com.br;https://www.celulardireto.com.br/telegram-web-como-utilizar-o-app-no-computador/;1\r\ncanaltech.com.br;https://canaltech.com.br/apps/whatsapp-web-telegram-web-comparativo/;1",
+// 	},
+// 	{
+// 	  keyword: "a70",
+// 	  position: 3,
+// 	  results: "Domain;Url;SERP Features\r\ntudocelular.com;https://www.tudocelular.com/Samsung/fichas-tecnicas/n5395/Samsung-Galaxy-A70.html;5,6\r\nsamsung.com;https://www.samsung.com/br/smartphones/galaxy-a70-a705/SM-A705MZKJZTO/;5\r\ncanaltech.com.br;https://canaltech.com.br/produto/samsung/galaxy-a70/;5",
+// 	},
+// 	{
+// 	  keyword: "moto g8 power",
+// 	  position: 4,
+// 	  results: "Domain;Url;SERP Features\r\ntudocelular.com;https://www.tudocelular.com/Motorola/fichas-tecnicas/n6123/Motorola-Moto-G8-Power.html;1,5,6\r\nzoom.com.br;https://www.zoom.com.br/celular/smartphone-motorola-moto-g-g8-power-xt2041-1-64gb;1,5\r\nmotorola.com.br;https://www.motorola.com.br/smartphone-moto-g8-power/p;1,5\r\ncanaltech.com.br;https://canaltech.com.br/produto/motorola/moto-g8-power/;1,5",
+// 	},
+// 	{
+// 	  keyword: "paypal",
+// 	  position: 2,
+// 	  results: "Domain;Url;SERP Features\r\npaypal.com;https://www.paypal.com/br/home;1,4,6\r\ntechtudo.com.br;http://www.techtudo.com.br/noticias/noticia/2014/07/o-que-e-e-como-funciona-o-paypal.html;1,4",
+// 	},
+// 	{
+// 	  keyword: "piratebay",
+// 	  position: 1,
+// 	  results: "Domain;Url;SERP Features\r\ntecnoblog.net;https://tecnoblog.net/10420/alternativas-ao-pirate-bay/;1",
+// 	},
+//   ]
 
 function searchKeywordsList() {
 	return new Promise(async (resolve, reject) => {
 		try {
 			console.log('>>> Iniciando Job')
+
+			// await clearCollection()
 
 			/* get list of competitors separated by group*/
 			let allCompetitorsByGroup = await getCompetitorsList()
@@ -101,7 +93,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 
 				} )
 			})
-			// let allCompetitors = ['canaltech.com.br', 'tecnoblog.net', 'olhardigital.com.br'] // only for tests while competitors logic isnt finish
+
 			console.log('>>> Executando etapa para: ', allCompetitors[0])
 			const mainDomain = ['tecmundo.com.br']
 			const allDomains = [...mainDomain, ...allCompetitors[0]]
@@ -130,11 +122,8 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			// 	displayLimit: 10,
 			// 	type: 'domain_domains',
 			// 	database: 'br',
-			// 	//domains: `*|or|tecmundo.com.br|*|or|canaltech.com.br|*|or|tecnoblog.net|*|or|olhardigital.com.br`,
 			// 	domains: queryDomains,
-			// 	//exportColumns: 'Ph,P0,P1,P2,P3,P4,Nr,Nq',
 			// 	exportColumns: exportColumns,
-			// 	//displayFilter: '-|P1|Gt|4|+|-|P2|Gt|4|+|-|P3|Gt|4',
 			// 	displayFilter: displayFilter,
 			// })
 	
@@ -183,8 +172,8 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			}, [])
 	
 			// FUTURE: remove comments when finish competitors logic
-			// /* get SEMrush organicResults results */
-			// /* only to use on recursive function */
+			/* get SEMrush organicResults results */
+			/* only to use on recursive function */
 			// let keywordsUngroupped = []
 			// await keywordsGrouppedByCompetitor.map((group) => {
 			// 	let groupKeywords = group[Object.keys(group)[0]]
@@ -312,26 +301,33 @@ async function getURlTitle(organicResults) {
 	}
 }
 
+async function clearCollection(){
+	try {
+		await deleteMany({
+			collection: semRushCollection,
+			document: {},
+		})
+	} catch (error) {
+		throw error
+	}
+}
 async function saveOrganicResults(organicResults) {
 	try {
-		// await deleteMany({
-		// 	collection: semRushCollection,
-		// 	document: {},
-		// })
-		let savedDocuments = organicResults.map(async (item) => {
+
+		let savedDocuments = await organicResults.map(async (item) => {
 			let competitor = Object.keys(item)[0]
 			let keywords = Object.values(item)[0]
 			let objectToSave = {
 				competitor: competitor,
 				keywords: keywords,
 			}
-			// var savedDocument = await save({
-			// 	collection: semRushCollection,
-			// 	document: objectToSave,
-			// })
-			// return savedDocument
-			return objectToSave
+			var savedDocument = await save({
+				collection: semRushCollection,
+				document: objectToSave,
+			})
+			return savedDocument
 		})
+		await Promise.all(savedDocuments)
 		console.log('>>> Finalizando etapa')
 		console.log('>>> Resultados')
 		console.log(organicResults)
