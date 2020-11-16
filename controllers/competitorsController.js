@@ -1,6 +1,8 @@
 const mongodbConnector = require("../connectors/mongodbConnector.js");
 const _ = require("lodash");
-//
+
+//route to get the competitors list and also their URL from database
+
 async function getCompetitorsList (params) {
   try { 
     let competitors = await mongodbConnector.list ({
