@@ -2,14 +2,15 @@ require('dotenv').config()
 
 const csvtojson = require('csvtojson')
 
-const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
-const { save, updateOne, findAll, deleteMany } = require('./connectors/mongodbConnector')
+// const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
+const { save, saveMultiple, updateOne, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
 const semRushCollection = 'semrush-results'
 
 /* only for tests */
-// const rawDomainsComparison = 
-// const organicResultsByKeyword = 
+// let mockConfigJson = require('./mockConfig.json')
+// const rawDomainsComparison = mockConfigJson.rawDomainsComparison
+// const organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
 
 function searchKeywordsList() {
 	return new Promise(async (resolve, reject) => {
@@ -287,35 +288,28 @@ async function defineCtrValue(competitorPosition) {
 }
 async function saveOrganicResults(organicResults) {
 	try {
-		let savedDocuments = await organicResults.map(async (item) => {
+
+		let documentsToSave = []
+
+		organicResults.map(async (item) => {
 			let competitor = Object.keys(item)[0]
 			let keywordsValue = Object.values(item)[0]
 
-			var savedDocument = await updateOne({
-				collection: semRushCollection,
-				filter: { competitor: competitor },
-				update: {
-					$set: {
-						competitor: competitor,
-					},
-					$push: {
-						keywords: { $each: keywordsValue },
-					},
-				},
-				options: {
-					new: true,
-					upsert: true,
-				},
-			})
-
-			return savedDocument
+			keywordsValue.map(keywordObject => {
+				keywordObject['competitor'] = competitor 
+				documentsToSave.push(keywordObject)
+			});
 		})
-		await Promise.all(savedDocuments)
+
+		let saveResult = await saveMultiple({
+			collection:semRushCollection,
+			documents: documentsToSave
+		})
 		console.log('>>> Finalizando etapa')
 		console.log('>>> Resultados')
 		console.log(organicResults)
 
-		return savedDocuments
+		return saveResult
 	} catch (error) {
 		throw error
 	}
