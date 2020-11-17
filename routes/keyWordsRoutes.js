@@ -20,4 +20,15 @@ router.post('/weeklyschedule',async function(req, res) {
         res.status(500).send('Internal Server Error');
     }
 });
+
+router.get('/weeklyschedule',async function(req, res) {
+    try{
+        var result = await keyWordsController.retrieveWeeklySchedule(req.query);
+        res.status(200).send(result)
+    }
+    catch(err){
+        res.status(500).send('Internal Server Error');
+    }
+});
+
 module.exports = router;
