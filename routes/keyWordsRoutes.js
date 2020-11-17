@@ -1,9 +1,9 @@
 const router = require("express").Router();
 const keyWordsController = require('../controllers/keyWordsController')
 
-router.get('/getKeyWordsList/:domain',async function(req, res) {
+router.get('/getKeyWordsList',async function(req, res) {
     try{
-        var result = await keyWordsController.getKeyWords(req.params);
+        var result = await keyWordsController.getKeyWords(req.query);
         res.status(200).send(result)
     }
     catch(err){

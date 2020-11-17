@@ -3,24 +3,52 @@ const _ = require("lodash");
 const { options } = require("../routes/keyWordsRoutes.js");
 const { searchKeywordsListByCompetitor } = require("./semRushController")
 
-//route to get the key words list from database
+//getKeyWords - retrieves the key words list from database based on the filtering parameters
 async function getKeyWords(params) {
   try {
-    let competitors = await mongodbConnector.list({
+
+
+    let mongoSearchObject = {
       collection: "semrush-results",
       query: {
         "competitor":
           params.domain
       }
+    }
 
-    })
+    //if page parameter is sent, set it for the query
+    if (params.resultsPerPage && params.currentPage) {
+      mongoSearchObject['page'] = {
+        size: parseInt(params.resultsPerPage),
+        current: parseInt(params.currentPage)
+      }
+    }
+
+    //if sorting parameters are sent, set them for the query
+    if (params.orderBy && params.orderType) {
+      mongoSearchObject['sort']={}
+      switch (params.orderType) {
+        case "asc":
+          mongoSearchObject['sort'][params.orderBy] = 1
+          break;
+        case "desc":
+          mongoSearchObject['sort'][params.orderBy] = -1
+          break;
+        default:
+          throw new Error('Invalid sorting parameter')
+          break;
+      }
+    }
+
+    let competitors = await mongodbConnector.list(mongoSearchObject)
+
     var keyWords = {
       keyWordsArray: []
     }
     if (competitors) {
-      competitors.list.map((keywords) => {
-        // delete competitor._id
-        keyWords.keyWordsArray.push(keywords)
+      competitors.list.map((keywordsObject) => {
+        // delete keywords._id
+        keyWords.keyWordsArray.push(keywordsObject)
       })
       return keyWords
     }
