@@ -126,7 +126,7 @@ async function setWeeklySchedule(params) {
         update: {
           $set: {
             weekStartDate: scheduleObject.weekStartDate,
-            lastUpdate: scheduleObject.lastUpdate,
+            lastUpdate: currentDate,
             scheduledKeywords: scheduleObject.scheduledKeywords
           }
         }
