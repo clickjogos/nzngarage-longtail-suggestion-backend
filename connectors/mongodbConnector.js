@@ -120,11 +120,11 @@ exports.list = async (p_Parameters) => {
         if (!page) {
             page = {
                 size: 30
-                , current: 0
+                , current: 1
             }
         }
         page.size = page.size ? page.size : 30
-        page.current = page.current ? page.current : 0
+        page.current = page.current ? page.current : 1
 
 
         let instance = await mongodb

@@ -10,10 +10,12 @@ async function getKeyWords(params) {
 
     let mongoSearchObject = {
       collection: "semrush-results",
-      query: {
-        "competitor":
-          params.domain
-      }
+      query: {}
+    }
+
+
+    if(params.domain){
+      mongoSearchObject["competitor"] = params.domain
     }
 
     //if page parameter is sent, set it for the query
@@ -26,18 +28,24 @@ async function getKeyWords(params) {
 
     //if sorting parameters are sent, set them for the query
     if (params.orderBy && params.orderType) {
-      mongoSearchObject['sort']={}
-      switch (params.orderType) {
-        case "asc":
-          mongoSearchObject['sort'][params.orderBy] = 1
-          break;
-        case "desc":
-          mongoSearchObject['sort'][params.orderBy] = -1
-          break;
-        default:
-          throw new Error('Invalid sorting parameter')
-          break;
-      }
+      let orderByList = params.orderBy.split(',')
+      let orderTypeList = params.orderType.split(',')
+      if(orderByList.length!=orderByList.length) throw new Error("Invalid ordering parameters, please ensure you have a single type for each orderer")
+      mongoSearchObject['sort'] = {}
+      orderByList.map((orderField) => {
+        let indexOfField = orderByList.indexOf(orderField)
+        switch (orderTypeList[indexOfField]) {
+          case "asc":
+            mongoSearchObject['sort'][orderField] = 1
+            break;
+          case "desc":
+            mongoSearchObject['sort'][orderField] = -1
+            break;
+          default:
+            throw new Error('Invalid sorting parameter')
+        }
+      })
+
     }
 
     let competitors = await mongodbConnector.list(mongoSearchObject)
@@ -120,7 +128,7 @@ async function setWeeklySchedule(params) {
         update: {
           $set: {
             weekStartDate: scheduleObject.weekStartDate,
-            lastUpdate: scheduleObject.lastUpdate,
+            lastUpdate: currentDate,
             scheduledKeywords: scheduleObject.scheduledKeywords
           }
         }
