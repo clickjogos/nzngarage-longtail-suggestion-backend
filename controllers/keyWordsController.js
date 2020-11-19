@@ -10,10 +10,12 @@ async function getKeyWords(params) {
 
     let mongoSearchObject = {
       collection: "semrush-results",
-      query: {
-        "competitor":
-          params.domain
-      }
+      query: {}
+    }
+
+
+    if(params.domain){
+      mongoSearchObject["competitor"] = params.domain
     }
 
     //if page parameter is sent, set it for the query
