@@ -2,24 +2,26 @@ require('dotenv').config()
 
 const csvtojson = require('csvtojson')
 
-const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
+// FUTURE: remove comments to use SEMrush API call
+// const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
+
 const { save, saveMultiple, updateOne, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
-const semRushCollection = 'teste'
+const semRushCollection = 'semrush-results'
 
 const limitCompetitorPosition = 4
 
 /* only for tests */
-let mockConfigJson = require('./mockConfig.json')
-let rawDomainsComparison = mockConfigJson.rawDomainsComparison
-let organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
+// let mockConfigJson = require('./mockConfig.json')
+// let rawDomainsComparison = mockConfigJson.rawDomainsComparison
+// let organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
 
 function searchKeywordsList() {
 	return new Promise(async (resolve, reject) => {
 		try {
 			console.log('>>> Iniciando Job')
 
-			// await clearCollection()
+			await clearCollection()
 
 			/* get list of competitors separated by group*/
 			let allCompetitorsByGroup = await getCompetitorsList()
@@ -68,7 +70,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 				}
 			})
 
-			// FUTURE: remove comments when finish competitors logic
+			// FUTURE: remove comments to use SEMrush API call
 			/* get SEMrush domainVsDomains results */
 			// let rawDomainsComparison = await domainVsDomains({
 			// 	limitRows: 1000,
@@ -101,7 +103,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			let keywordsGrouppedByCompetitor = await groupKeywordsByCompetitor(onlyPositionOfInterest, allDomains)
 			keywordsGrouppedByCompetitor = await keywordsGrouppedByCompetitor.filter((group) => Object.keys(group)[0] !== mainDomain[0])
 
-			// FUTURE: remove comments when finish competitors logic
+			// FUTURE: remove comments to use SEMrush API call
 			/* only to use on recursive function */
 			// let keywordsUngroupped = []
 			// await keywordsGrouppedByCompetitor.map((group) => {
