@@ -2,10 +2,10 @@ require('dotenv').config()
 
 const csvtojson = require('csvtojson')
 
-// const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
+const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
 const { save, saveMultiple, updateOne, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
-const semRushCollection = 'semrush-results'
+const semRushCollection = 'teste'
 
 const limitCompetitorPosition = 4
 
@@ -71,7 +71,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			// FUTURE: remove comments when finish competitors logic
 			/* get SEMrush domainVsDomains results */
 			// let rawDomainsComparison = await domainVsDomains({
-			// 	limitRows: 10,
+			// 	limitRows: 1000,
 			// 	type: 'domain_domains',
 			// 	database: 'br',
 			// 	domains: queryDomains,
@@ -105,12 +105,12 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			/* only to use on recursive function */
 			// let keywordsUngroupped = []
 			// await keywordsGrouppedByCompetitor.map((group) => {
-				// 	let groupKeywords = group[Object.keys(group)[0]]
-				// 	groupKeywords.map((keyword) => {
-					// 		keywordsUngroupped.push(keyword)
+			// 		let groupKeywords = group[Object.keys(group)[0]]
+			// 		groupKeywords.map((keyword) => {
+			// 				keywordsUngroupped.push(keyword)
 			// 	})
 			// })			
-			/* get SEMrush organicResults results */
+			// /* get SEMrush organicResults results */
 			// let organicResultsByKeyword = await queueOrganicResultsByKeyword(keywordsUngroupped, [])
 
 			/* Convert organicResultsByKeyword to a JSON */
@@ -218,13 +218,13 @@ async function defineMainAndSecondaryPosition(convertedDomainsComparison, allDom
 								row['nznPosition'] = row[key]
 							} 
 							else if(row[key] <= limitCompetitorPosition) {
-								row.secondaryCompetitors.push({competitor: key, position:row[key]})
+								row.secondaryCompetitors.push({competitor: key, competitorPosition:row[key]})
 							}
 							delete row[key]
 						}
 					}
 				})
-	
+				if(row.secondaryCompetitors.length==0) delete row.secondaryCompetitors
 				accumulator.push(row)
 			} 
 			return accumulator
@@ -266,7 +266,7 @@ async function queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicR
 		if (keywordsUngroupped.length > 0) {
 			let x = await organicResults({
 				phrase: keywordsUngroupped[0].Keyword,
-				displayLimit: keywordsUngroupped[0].competitorPosition,
+				displayLimit: limitCompetitorPosition,
 				exportColumns: 'Dn,Ur,Fk',
 			})
 			let keyword = keywordsUngroupped[0].Keyword
@@ -310,19 +310,21 @@ async function joinKeywordAndCompetitorInfos(keywordsGrouppedByCompetitor, organ
 		let keywordAndCompetitorInfos = await keywordsGrouppedByCompetitor.map(async (item) => {
 			let competitor = Object.keys(item)[0]
 			let keywords = Object.values(item)[0]
-			keywords.map(async (keyword, index) => {
+			let keywordsMap = await keywords.map(async (keyword, index) => {
 				let keywordInfo = organicResultsWithTitle.filter((kwInfo) => kwInfo.keyword == keyword.Keyword)
 
 				item[competitor][index]['competitorInfo'] = keywordInfo[0].results[keyword.competitorPosition-1]
 				item[competitor][index]['ctr'] = await defineCtrValue(keywordInfo[0].competitorPosition)
 
-				// if(keyword.secondaryCompetitors.length > 0) {
-				// 	keyword.secondaryCompetitors.map( (secondary, indexSecondary) =>{
-				// 		// item[competitor][index][secondaryCompetitors][indexSecondary]['competitorInfo'] = 
-				// 	})
-				// }
-
+				if(keyword.secondaryCompetitors) {
+					keyword.secondaryCompetitors.map( (secondary, indexSecondary) =>{
+						console.log(keywordInfo)
+						item[competitor][index].secondaryCompetitors[indexSecondary]['competitorInfo'] = keywordInfo[0].results[secondary.competitorPosition-1]
+					})
+				}
+				return item
 			})
+			keywordsMap = await Promise.all(keywordsMap)
 			return item
 		})
 		keywordAndCompetitorInfos = await Promise.all(keywordAndCompetitorInfos)
@@ -384,15 +386,18 @@ async function saveOrganicResults(organicResults) {
 			});
 		})
 
-		let saveResult = await saveMultiple({
-			collection:semRushCollection,
-			documents: documentsToSave
-		})
-		console.log('>>> Finalizando etapa')
-		console.log('>>> Resultados')
-		console.log(organicResults)
+		if(documentsToSave.length > 0) {
+			let saveResult = await saveMultiple({
+				collection:semRushCollection,
+				documents: documentsToSave
+			})
+			console.log('>>> Finalizando etapa')
+			console.log('>>> Resultados')
+			console.log(organicResults)
+			return saveResult
+		}
+		else return 
 
-		return saveResult
 	} catch (error) {
 		throw error
 	}

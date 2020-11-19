@@ -38,6 +38,9 @@ exports.domainVsDomains = async (payload) =>{
 
 exports.organicResults = async (payload) =>{
     try {
+        delete options.params.display_filter
+        delete options.params.display_offset
+        
         options.params['type'] = 'phrase_organic'
 
         options.params['phrase'] = payload.phrase

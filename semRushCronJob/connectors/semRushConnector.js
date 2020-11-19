@@ -13,7 +13,6 @@ let options = {
 	url: BASE_URL,
 	params: {
 		key: IAM_APIKEY,
-		display_limit: 1,
 		database: 'br',
 	},
 }
@@ -74,12 +73,16 @@ async function queueDomainVsDomain(loop, displayLimitArray, displayOffset, optio
 
 exports.organicResults = async (payload) => {
 	try {
+		delete options.params.display_filter
+		delete options.params.display_offset
+	
 		options.params['type'] = 'phrase_organic'
 
 		options.params['phrase'] = payload.phrase
 		options.params['display_limit'] = payload.displayLimit
 		options.params['export_columns'] = payload.exportColumns
 
+		console.log(`call for ${payload.phrase}`)
 		let semRushResponse = await axios(options)
 		console.log(`results for ${payload.phrase}`)
 		return semRushResponse.data
