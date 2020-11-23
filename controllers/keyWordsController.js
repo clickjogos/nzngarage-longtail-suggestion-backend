@@ -15,7 +15,7 @@ async function getKeyWords(params) {
 
 
     if(params.domain){
-      mongoSearchObject["competitor"] = params.domain
+      mongoSearchObject.query["competitor"] = params.domain
     }
 
     //if page parameter is sent, set it for the query
