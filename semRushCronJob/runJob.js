@@ -2,22 +2,26 @@ require('dotenv').config()
 
 const csvtojson = require('csvtojson')
 
+// FUTURE: remove comments to use SEMrush API call
 // const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
+
 const { save, saveMultiple, updateOne, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
 const semRushCollection = 'semrush-results'
 
+const limitCompetitorPosition = 4
+
 /* only for tests */
 // let mockConfigJson = require('./mockConfig.json')
-// const rawDomainsComparison = mockConfigJson.rawDomainsComparison
-// const organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
+// let rawDomainsComparison = mockConfigJson.rawDomainsComparison
+// let organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
 
 function searchKeywordsList() {
 	return new Promise(async (resolve, reject) => {
 		try {
 			console.log('>>> Iniciando Job')
 
-			// await clearCollection()
+			await clearCollection()
 
 			/* get list of competitors separated by group*/
 			let allCompetitorsByGroup = await getCompetitorsList()
@@ -37,6 +41,7 @@ function searchKeywordsList() {
 async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywordsGroupped) {
 	try {
 		if (allCompetitorsByGroup.length > 0) {
+			let allCompetitorsDetails = allCompetitorsByGroup
 			let allCompetitors = Object.values(allCompetitorsByGroup[0]).map((groupCategory) => {
 				return groupCategory.map((domain) => {
 					return domain.URL
@@ -47,7 +52,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			const mainDomain = ['tecmundo.com.br']
 			const allDomains = [...mainDomain, ...allCompetitors[0]]
 			const numberOfDomains = allDomains.length
-			const limitCompetitorPosition = 4
+			
 
 			/* create objects to use as SEMrush parameters */
 			let queryDomains = ''
@@ -65,10 +70,10 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 				}
 			})
 
-			// FUTURE: remove comments when finish competitors logic
+			// FUTURE: remove comments to use SEMrush API call
 			/* get SEMrush domainVsDomains results */
 			// let rawDomainsComparison = await domainVsDomains({
-			// 	displayLimit: 1000,
+			// 	limitRows: 1000,
 			// 	type: 'domain_domains',
 			// 	database: 'br',
 			// 	domains: queryDomains,
@@ -76,95 +81,74 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			// 	displayFilter: displayFilter,
 			// })
 
+			/* Convert rawDomainsComparison to a JSON */
 			let colParser = {
 				'Number of Results': 'number',
 				'Search Volume': 'number',
 				[mainDomain]: 'number',
 			}
-			allCompetitors[0].map((domain) => {
-				colParser[domain] = 'number'
+			allCompetitors[0].map((domain) => {colParser[domain] = 'number'})
+			convertedDomainsComparison = []
+			rawDomainsComparison = rawDomainsComparison.map( async rowGroup => {
+				let rowGroupJson = await convertResultToJson(rowGroup, colParser)
+				return convertedDomainsComparison.push(rowGroupJson)
 			})
-			const convertedDomainsComparison = await convertResultToJson(rawDomainsComparison, colParser)
+			rawDomainsComparison = await Promise.all(rawDomainsComparison)
+			convertedDomainsComparison = convertedDomainsComparison.flat()
 
-			let onlyPositionOfInterst = await convertedDomainsComparison.reduce(function (accumulator, row, array) {
-				let onlyDomainsPosition = []
-				allDomains.map((domain) => {
-					return onlyDomainsPosition.push(row[domain])
-				})
-				let min = Math.min(...onlyDomainsPosition)
-				let rowKeys = Object.keys(row)
-				rowKeys.map((key) => {
-					if (allDomains.includes(key)) {
-						if (row[key] !== min) {
-							if (key == [mainDomain]) {
-								row['nznPosition'] = row[key]
-							}
-							delete row[key]
-						}
-					}
-				})
-
-				accumulator.push(row)
-				return accumulator
-			}, [])
-
-			let keywordsGrouppedByCompetitor = await onlyPositionOfInterst.reduce((accumulator, row) => {
-				let keys = Object.keys(row)
-				const competitorKey = keys.filter((a) => allDomains.includes(a))[0]
-				row['competitorPosition'] = row[competitorKey]
-				delete row[competitorKey]
-
-				var indexOfCompetitor = accumulator.findIndex((i) => Object.keys(i)[0] === competitorKey)
-
-				if (indexOfCompetitor === -1) {
-					accumulator.push({ [competitorKey]: [row] })
-				} else {
-					accumulator[indexOfCompetitor][competitorKey].push(row)
-				}
-				return accumulator
-			}, [])
+			/* Finds which competitor has the best position */
+			let onlyPositionOfInterest = await defineMainAndSecondaryPosition(convertedDomainsComparison, allDomains, mainDomain)
+			
+			/* Group keywords by competitor and remove those referring to the main domain  */
+			let keywordsGrouppedByCompetitor = await groupKeywordsByCompetitor(onlyPositionOfInterest, allDomains)
 			keywordsGrouppedByCompetitor = await keywordsGrouppedByCompetitor.filter((group) => Object.keys(group)[0] !== mainDomain[0])
-			// FUTURE: remove comments when finish competitors logic
-			/* get SEMrush organicResults results */
+
+			// FUTURE: remove comments to use SEMrush API call
 			/* only to use on recursive function */
 			// let keywordsUngroupped = []
 			// await keywordsGrouppedByCompetitor.map((group) => {
-			// 	let groupKeywords = group[Object.keys(group)[0]]
-			// 	groupKeywords.map((keyword) => {
-			// 		keywordsUngroupped.push(keyword)
+			// 		let groupKeywords = group[Object.keys(group)[0]]
+			// 		groupKeywords.map((keyword) => {
+			// 				keywordsUngroupped.push(keyword)
 			// 	})
-			// })
-			// let organicResultsByKeyword = await getOrganicResultsByKeyword(keywordsUngroupped, [])
+			// })			
+			// /* get SEMrush organicResults results */
+			// let organicResultsByKeyword = await queueOrganicResultsByKeyword(keywordsUngroupped, [])
 
+			/* Convert organicResultsByKeyword to a JSON */
 			let convertedOrganicResultsByKeyword = organicResultsByKeyword.map(async (row) => {
 				let results = await convertResultToJson(row.results, null)
-
-				return { keyword: row.keyword, competitorPosition: row.competitorPosition, result: results[row.competitorPosition - 1] }
+				return { keyword: row.keyword, competitorPosition: row.competitorPosition, results: results }
 			})
 			convertedOrganicResultsByKeyword = await Promise.all(convertedOrganicResultsByKeyword)
 
-			let organicResultsWithTitle = await getURlTitle(convertedOrganicResultsByKeyword)
+			/* Define URL Title  and join its value to Organic Results*/ 
+			let organicResultsWithTitle = await getURlTitle(convertedOrganicResultsByKeyword, allCompetitorsDetails.specialTitleTreatment)
+		
+			/* Join values of keyword, competitor and organic search */ 
+			let keywordAndCompetitorInfos = await joinKeywordAndCompetitorInfos(keywordsGrouppedByCompetitor, organicResultsWithTitle)
 
-			let keywordAndCompetitorInfos = await keywordsGrouppedByCompetitor.map(async (item) => {
-				let competitor = Object.keys(item)[0]
-				let keywords = Object.values(item)[0]
-				keywords.map(async (keyword, index) => {
-					let keywordInfo = organicResultsWithTitle.filter((kwInfo) => kwInfo.keyword == keyword.Keyword)
+			/* Choose keywords based on title limit */ 
+			let choosenKeywords = await chooseKeywordsByTitleLimit(keywordAndCompetitorInfos)
 
-					item[competitor][index]['competitorInfo'] = keywordInfo[0].result
-					item[competitor][index]['ctr'] = await defineCtrValue(keywordInfo[0].competitorPosition)
-				})
-				return item
-			})
-			keywordAndCompetitorInfos = await Promise.all(keywordAndCompetitorInfos)
-
-			let savedDocuments = await saveOrganicResults(keywordAndCompetitorInfos)
+			let savedDocuments = await saveOrganicResults(choosenKeywords)
 			keywordsGroupped.push(savedDocuments)
 			allCompetitorsByGroup.splice(0, 1)
 			return await searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywordsGroupped)
 		} else {
 			return keywordsGroupped
 		}
+	} catch (error) {
+		throw error
+	}
+}
+
+async function clearCollection() {
+	try {
+		await deleteMany({
+			collection: semRushCollection,
+			document: {},
+		})
 	} catch (error) {
 		throw error
 	}
@@ -218,19 +202,80 @@ async function convertResultToJson(result, colParser) {
 	}
 }
 
-async function getOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicResults) {
+async function defineMainAndSecondaryPosition(convertedDomainsComparison, allDomains, mainDomain){
+	try {
+		let onlyPositionOfInterest = await convertedDomainsComparison.reduce(function (accumulator, row, array) {
+			let onlyDomainsPosition = []
+			row['secondaryCompetitors'] = []
+			if(row['Search Volume'] >= 500) {
+				allDomains.map((domain) => {
+					return onlyDomainsPosition.push(row[domain])
+				})
+				let min = Math.min(...onlyDomainsPosition)
+				let rowKeys = Object.keys(row)
+				rowKeys.map((key) => {
+					if (allDomains.includes(key)) {
+						if (row[key] !== min) {
+							if (key == [mainDomain]) {
+								row['nznPosition'] = row[key]
+							} 
+							else if(row[key] <= limitCompetitorPosition) {
+								row.secondaryCompetitors.push({competitor: key, competitorPosition:row[key]})
+							}
+							delete row[key]
+						}
+					}
+				})
+				if(row.secondaryCompetitors.length==0) delete row.secondaryCompetitors
+				accumulator.push(row)
+			} 
+			return accumulator
+		}, [])
+		// onlyPositionOfInterest = Boolean(...onlyPositionOfInterest)
+		return onlyPositionOfInterest
+	} catch (error) {
+		throw error
+	}
+}
+
+async function groupKeywordsByCompetitor(onlyPositionOfInterest, allDomains){
+	try {
+		let keywordsGroupped = await onlyPositionOfInterest.reduce((accumulator, row) => {
+			let keys = Object.keys(row)
+			const competitorKey = keys.filter((a) => allDomains.includes(a))[0]
+			row['competitorPosition'] = row[competitorKey]
+			delete row[competitorKey]
+
+			var indexOfCompetitor = accumulator.findIndex((i) => Object.keys(i)[0] === competitorKey)
+
+			if (indexOfCompetitor === -1) {
+				accumulator.push({ [competitorKey]: [row] })
+			} else {
+				accumulator[indexOfCompetitor][competitorKey].push(row)
+			}
+			return accumulator
+		}, [])
+
+		return keywordsGroupped
+
+	} catch (error) {
+		throw error
+	}
+}
+
+async function queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicResults) {
 	try {
 		if (keywordsUngroupped.length > 0) {
 			let x = await organicResults({
 				phrase: keywordsUngroupped[0].Keyword,
-				displayLimit: keywordsUngroupped[0].competitorPosition,
+				displayLimit: limitCompetitorPosition,
 				exportColumns: 'Dn,Ur,Fk',
 			})
 			let keyword = keywordsUngroupped[0].Keyword
 			let position = keywordsUngroupped[0].competitorPosition
 			keywordsOrganicResults.push({ keyword: keyword, competitorPosition: position, results: x })
 			keywordsUngroupped.splice(0, 1)
-			return await getOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicResults)
+			return await queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicResults)
 		} else {
 			return keywordsOrganicResults
 		}
@@ -242,14 +287,17 @@ async function getOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicRes
 async function getURlTitle(organicResults) {
 	try {
 		organicResults.map((row, index) => {
-			let url = row.result.Url.split('/')
-			url = url.filter((item) => item)
-			let splittedTitle = url[url.length - 1].split('-')
-			let title = ''
-			splittedTitle.map((word) => {
-				title = title + ` ${word}`
+			row.results.map( (result, indexResult) =>{
+				let url = result.Url.split('/')
+				url = url.filter((item) => item)
+				let splittedTitle = url[url.length - 1].split('-')
+				let title = ''
+				splittedTitle.map((word) => {
+					title = title + ` ${word}`
+				})
+				organicResults[index].results[indexResult]['title'] = title.trim()
+				organicResults[index].results[indexResult]['titleLength'] = splittedTitle.length
 			})
-			organicResults[index].result['title'] = title.trim()
 			return
 		})
 
@@ -259,12 +307,51 @@ async function getURlTitle(organicResults) {
 	}
 }
 
-async function clearCollection() {
+async function joinKeywordAndCompetitorInfos(keywordsGrouppedByCompetitor, organicResultsWithTitle) {
 	try {
-		await deleteMany({
-			collection: semRushCollection,
-			document: {},
+		let keywordAndCompetitorInfos = await keywordsGrouppedByCompetitor.map(async (item) => {
+			let competitor = Object.keys(item)[0]
+			let keywords = Object.values(item)[0]
+			let keywordsMap = await keywords.map(async (keyword, index) => {
+				let keywordInfo = organicResultsWithTitle.filter((kwInfo) => kwInfo.keyword == keyword.Keyword)
+
+				item[competitor][index]['competitorInfo'] = keywordInfo[0].results[keyword.competitorPosition-1]
+				item[competitor][index]['ctr'] = await defineCtrValue(keywordInfo[0].competitorPosition)
+
+				if(keyword.secondaryCompetitors) {
+					keyword.secondaryCompetitors.map( (secondary, indexSecondary) =>{
+						console.log(keywordInfo)
+						item[competitor][index].secondaryCompetitors[indexSecondary]['competitorInfo'] = keywordInfo[0].results[secondary.competitorPosition-1]
+					})
+				}
+				return item
+			})
+			keywordsMap = await Promise.all(keywordsMap)
+			return item
 		})
+		keywordAndCompetitorInfos = await Promise.all(keywordAndCompetitorInfos)
+		return keywordAndCompetitorInfos
+	} catch (error) {
+		throw error
+	}
+}
+
+async function chooseKeywordsByTitleLimit(keywordAndCompetitorInfos){
+	try {
+		let x = []
+		keywordAndCompetitorInfos.map( (kwInfo, index) =>{
+			let competitor = Object.keys(kwInfo)[0]
+			let keywords = Object.values(kwInfo)[0]
+			keywords = keywords.reduce( (accumulator, keyword) =>{
+				let titleLength = keyword.competitorInfo.titleLength
+				if( titleLength >= 4 ) accumulator.push(keyword)
+				return accumulator
+			}, [])
+			x.push({[competitor]:keywords})
+			// return keywordAndCompetitorInfos
+		})
+		
+		return x
 	} catch (error) {
 		throw error
 	}
@@ -301,15 +388,18 @@ async function saveOrganicResults(organicResults) {
 			});
 		})
 
-		let saveResult = await saveMultiple({
-			collection:semRushCollection,
-			documents: documentsToSave
-		})
-		console.log('>>> Finalizando etapa')
-		console.log('>>> Resultados')
-		console.log(organicResults)
+		if(documentsToSave.length > 0) {
+			let saveResult = await saveMultiple({
+				collection:semRushCollection,
+				documents: documentsToSave
+			})
+			console.log('>>> Finalizando etapa')
+			console.log('>>> Resultados')
+			console.log(organicResults)
+			return saveResult
+		}
+		else return 
 
-		return saveResult
 	} catch (error) {
 		throw error
 	}

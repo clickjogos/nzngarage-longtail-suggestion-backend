@@ -8,7 +8,6 @@ const { getCompetitorsList } = require('./competitorsController')
 const semRushCollection = 'semrush-results'
 
 const rawDomainsComparison = "Keyword;Number of Results;Search Volume;tecmundo.com.br;omelete.com.br\r\nfilmes;715000000;1500000;1;3\r\nbaby shark;289000000;1220000;48;2\r\ncoringa;15200000;1000000;10;4\r\nhomem aranha;43300000;673000;8;2\r\nfilmes 2019;295000000;368000;1;3\r\nstar wars;950000000;368000;26;3\r\nbatman;507000000;301000;69;3\r\nfilmes de terror;66200000;301000;17;2\r\noscars 2020;74800000;301000;68;3\r\narlequina;7480000;246000;68;4\r\n"
-
 const organicResultsByKeyword = [
 	{
 	  keyword: "filmes",
@@ -93,11 +92,8 @@ async function searchKeywordsListByCompetitor(payload) {
 		// 	displayLimit: 10,
 		// 	type: 'domain_domains',
 		// 	database: 'br',
-		// 	//domains: `*|or|tecmundo.com.br|*|or|canaltech.com.br|*|or|tecnoblog.net|*|or|olhardigital.com.br`,
 		// 	domains: queryDomains,
-		// 	//exportColumns: 'Ph,P0,P1,P2,P3,P4,Nr,Nq',
 		// 	exportColumns: exportColumns,
-		// 	//displayFilter: '-|P1|Gt|4|+|-|P2|Gt|4|+|-|P3|Gt|4',
 		// 	displayFilter: displayFilter,
 		// })
 
@@ -176,6 +172,7 @@ async function searchKeywordsListByCompetitor(payload) {
 			return item
 		})
 		// let savedDocuments = await saveOrganicResults(keywordAndCompetitorInfos)
+
 		let competitorKeywordsList = await keywordAndCompetitorInfos.filter( competitor => 
 			Object.keys(competitor)[0] === allCompetitors[0]
 		)
@@ -249,21 +246,30 @@ async function getURlTitle(organicResults) {
 
 async function saveOrganicResults(organicResults) {
 	try {
-		let savedDocuments = organicResults.map(async (item) => {
+	
+		let documentsToSave = []
+
+		organicResults.map(async (item) => {
 			let competitor = Object.keys(item)[0]
-			let keywords = Object.values(item)[0]
-			let objectToSave = {
-				competitor: competitor,
-				keywords: keywords,
-			}
-			var savedDocument = await save({
-				collection: semRushCollection,
-				document: objectToSave,
-            })			
-            return savedDocument
-        })
-        
-        return savedDocuments
+			let keywordsValue = Object.values(item)[0]
+
+			keywordsValue.map(keywordObject => {
+				keywordObject['competitor'] = competitor 
+				documentsToSave.push(keywordObject)
+			});
+		})
+
+		if(documentsToSave.length > 0) {
+			let saveResult = await saveMultiple({
+				collection:semRushCollection,
+				documents: documentsToSave
+			})
+			console.log('>>> Finalizando etapa')
+			console.log('>>> Resultados')
+			console.log(organicResults)
+			return saveResult
+		}
+		else return 
 	} catch (error) {
 		throw error
 	}
