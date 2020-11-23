@@ -31,4 +31,14 @@ router.get('/weeklyschedule',async function(req, res) {
     }
 });
 
+router.post('/disqualify',async function(req, res) {
+    try{
+        var result = await keyWordsController.disqualifyKeywords(req.query)
+        res.status(200).send(result)
+    }
+    catch(err){
+        res.status(500).send('Internal Server Error');
+    }
+});
+
 module.exports = router;

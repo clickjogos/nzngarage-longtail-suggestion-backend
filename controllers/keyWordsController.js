@@ -152,7 +152,6 @@ async function setWeeklySchedule(params) {
   }
 }
 
-
 // retrieveWeeklySchedule - retrieves a weekly keyword schedule in the database
 // the date parameters must be in the format "YYYY-MM-DD" 
 async function retrieveWeeklySchedule(params) {
@@ -212,8 +211,50 @@ async function retrieveWeeklySchedule(params) {
   }
 }
 
+// removeKeyword - remove a given keyword from the database and save its reference 
+async function disqualifyKeywords(params) {
+  try {
+    let keywords = params.keywords.split(',')
+    let operations = await keywords.map( async keyword => {
+      keyword = keyword.trim()
+      let disqualifiedExists = await mongodbConnector.findAll({
+        collection: 'disqualified-keywords'       
+      })
+
+      if( disqualifiedExists.length == 0 ) {
+        await mongodbConnector.save({
+          collection: 'disqualified-keywords',
+          document: { Keywords: [keyword]}
+        })
+      } else {
+        await mongodbConnector.updateOne({
+          collection: 'disqualified-keywords',
+          filter: {_id: disqualifiedExists[0]._id},
+          update:   {
+            $addToSet: { Keywords: keyword } }
+        })
+      }
+
+      await mongodbConnector.deleteOne({
+        collection: 'semrush-results',
+        query:{ Keyword: keyword}
+      })
+
+      return keyword
+    })
+   
+    operations = await Promise.all(operations)
+   return operations
+  } catch (error) {
+    console.log(error)
+    throw new Error(err)
+  }
+}
+
+
 module.exports = {
   getKeyWords,
   setWeeklySchedule,
-  retrieveWeeklySchedule
+  retrieveWeeklySchedule,
+  disqualifyKeywords
 }
