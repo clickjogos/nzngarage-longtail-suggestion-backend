@@ -248,33 +248,47 @@ async function disqualifyKeywords(params) {
 
 		keyword = keyword.trim()
 		competitor = competitor.trim()
+		
+		/* Find all keyword's documents related  */
+		let keywordDocuments = await mongodbConnector.find({
+			collection: 'semrush-results',
+			query: { Keyword: keyword },
+		})
+	
+		let documentToRemove = keywordDocuments.filter( document => document.competitor == competitor )[0]
+		if( !documentToRemove.main ) {
+			await mongodbConnector.deleteOne({
+				collection: 'semrush-results',
+				query: { Keyword: keyword, competitor: competitor },
+			})
+		} else {
+			let oldMin = documentToRemove.competitorPosition
+			let onlyCompetitorsPosition = await keywordDocuments.map( (document) => {
+				if(document.competitorPosition != oldMin ) return document.competitorPosition
+				else return 999
+			})
+			let newMin = Math.min(...onlyCompetitorsPosition)
+			let documentToUpdate = keywordDocuments.filter( document => document.competitorPosition == newMin )[0]
 
+			await mongodbConnector.deleteOne({
+				collection: 'semrush-results',
+				query: { _id: documentToRemove._id },
+			})
+			await mongodbConnector.updateOne({
+				collection: 'semrush-results',
+				filter: {
+					_id: documentToUpdate._id,
+				},
+				update: {$set: {main: true}}
+			})
+		}
+		
 		await mongodbConnector.save({
 			collection: 'disqualified-keywords',
 			document: { Keyword: keyword, competitor: competitor, createAt: currentDate },
 		})
 
-		let keywordDocument = await mongodbConnector.findOne({
-			collection: 'semrush-results',
-			query: { Keyword: keyword },
-		})
-
-		if (keywordDocument.competitor == competitor) {
-			await mongodbConnector.deleteOne({
-				collection: 'semrush-results',
-				query: { Keyword: keyword },
-			})
-		} else {
-			await mongodbConnector.updateOne({
-				collection: 'semrush-results',
-				filter: {
-					_id: keywordDocument._id,
-				},
-				update: { $pull: { secondaryCompetitors: { competitor: competitor } } },
-			})
-		}
-
-		return keyword
+		return {keyword,competitor}
 	} catch (error) {
 		console.log(error)
 		throw new Error(err)
