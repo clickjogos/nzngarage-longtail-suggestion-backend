@@ -8,22 +8,21 @@ const { all } = require('underscore')
 
 const { save, saveMultiple, updateOne, find, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
-// const semRushCollection = 'semrush-results'
 const semRushCollection = 'semrush-results'
 
 const limitCompetitorPosition = 4
 
 /* only for tests */
-// let mockConfigJson = require('./mockConfig.json')
-// let rawDomainsComparison = mockConfigJson.rawDomainsComparison
-// let organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
+let mockConfigJson1 = require('./mockFiles/mockConfig-group1.json')
+let mockConfigJson2 = require('./mockFiles/mockConfig-group2.json')
+let mockConfigJson3 = require('./mockFiles/mockConfig-group3.json')
 
 function searchKeywordsList() {
 	return new Promise(async (resolve, reject) => {
 		try {
 			console.log('>>> Iniciando Job')
 
-			// await clearCollection()
+			await clearCollection()
 
 			/* get list of competitors separated by group*/
 			let allCompetitorsByGroup = await getCompetitorsList()
@@ -36,7 +35,7 @@ function searchKeywordsList() {
 			/* Recursive function 
 			search all interests keyword, its competitors information and save
 			*/
-			let savedDocuments = await searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, [], keywordsToDisconsider)
+			let savedDocuments = await searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, [], keywordsToDisconsider, 1)
 
 			resolve(savedDocuments)
 		} catch (error) {
@@ -45,9 +44,18 @@ function searchKeywordsList() {
 	})
 }
 
-async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywordsGroupped, keywordsToDisconsider) {
+async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywordsGroupped, keywordsToDisconsider, groupCategory) {
 	try {
 		if (allCompetitorsByGroup.length > 0) {
+
+			/* only for tests */
+			// let mockFile
+			// if(groupCategory==1) mockFile = mockConfigJson1
+			// else if (groupCategory==2) mockFile = mockConfigJson2
+			// else mockFile = mockConfigJson3
+			// let rawDomainsComparison = mockFile.rawDomainsComparison
+			// let organicResultsByKeyword = mockFile.organicResultsByKeyword
+
 			let allCompetitorsDetails = allCompetitorsByGroup[0]
 			let allCompetitors = Object.values(allCompetitorsByGroup[0]).map((groupCategory) => {
 				return groupCategory.map((domain) => {
@@ -140,7 +148,8 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			let savedDocuments = await saveOrganicResults(choosenKeywords)
 			keywordsGroupped.push(savedDocuments)
 			allCompetitorsByGroup.splice(0, 1)
-			return await searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywordsGroupped, keywordsToDisconsider)
+			groupCategory = groupCategory+1
+			return await searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywordsGroupped, keywordsToDisconsider, groupCategory)
 		} else {
 			return keywordsGroupped
 		}
