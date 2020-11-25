@@ -54,45 +54,46 @@ async function getKeyWords(params) {
 			let keywordToFind = row.Keyword
 			selectedKeywords.push({Keyword: keywordToFind})
 		})
-		
-		let ORquery = {
-			$and: [ 
-				{main: false},
-				{$or: selectedKeywords}
-			]
-		}
 
 		let secondaryCompetitors = await mongodbConnector.find({
 			collection: 'semrush-results',
-			query: ORquery
+			query: {
+				$and: [ 
+					{main: false},
+					{$or: selectedKeywords}
+				]
+			}
 		})
 
 		let allKeywords = [...onlyMainKeywords, ...secondaryCompetitors ]
 		let keywordsGroupped = _(allKeywords)
 			.groupBy('Keyword')
-			.map(function(g, key) { return {
-				Keyword: key,
-				"Number of Results": g[0]["Number of Results"],
-				"nznPosition": g[0]["nznPosition"],
-				"Search Volume": g[0]["Search Volume"],
-				competitors: g,
-			};})
+			.map(function(g, key) { 
+				return {
+					Keyword: key,
+					"Number of Results": g[0]["Number of Results"],
+					"nznPosition": g[0]["nznPosition"],
+					"Search Volume": g[0]["Search Volume"],
+					competitors: g,
+				}
+			;})
 			.value()
-			// .orderBy('count', 'desc')
-			// .value();
 
+		let keysToRemove = ['ctr', 'Number of Results', 'Search Volume', 'nznPosition', 'Keyword']
+			keywordsGroupped.map( (kwGroup, indexGroup)=>{
+				keysToRemove.map( key =>{ 
+					kwGroup.competitors.map( (competitor, indexCompetitor)=>{
+						delete keywordsGroupped[indexGroup].competitors[indexCompetitor][key]
+				})
+			})
+		})
 
 		var keyWords = {
 			keyWordsArray: [],
 		}
 		if (competitors) {
-			// competitors.list.map((keywordsObject) => {
-			// 	// delete keywords._id
-			// 	keyWords.keyWordsArray.push(keywordsObject)
-			// })
 			keywordsGroupped.map( keyword =>{
 				keyWords.keyWordsArray.push(keyword)
-
 			})
 			return keyWords
 		} else {
