@@ -295,6 +295,70 @@ async function disqualifyKeywords(params) {
 	}
 }
 
+function getCurrentWeekStartDate() {
+  let currentDate = new Date();
+  let currentWeekStartDate = new Date()
+  let weekdayNumber = currentDate.getDay()
+  currentWeekStartDate.setDate(currentDate.getDate() - weekdayNumber)
+  currentWeekStartDate.setHours(0, 0, 0, 0);
+  return currentWeekStartDate
+}
+
+//setDateIntervalFilters receives two date strings in the YYYY-MM-DD format and returns a mongo-formated date filter 
+function setDateIntervalFilter(startDate, endDate) {
+  try {
+    var startDateFilter = new Date(startDate)
+    var endDateFilter = new Date(endDate)
+    startDateFilter.setHours(0, 0, 0, 0);
+    endDateFilter.setHours(23, 59, 59, 999);
+    let filterObject = {
+      "$gte": startDateFilter,
+      "$lte": endDateFilter
+    }
+    return filterObject
+  } catch (error) {
+    throw new Error("Invalid date format for parameters\nERROR:\n" + JSON.stringify(error))
+  }
+}
+
+
+function setupMongoFilters(requestParameters, collectionName) {
+  let mongoSearchObject = {
+    collection: collectionName,
+    query: {}
+  }
+
+  //if page parameter is sent, set it for the query
+  if (requestParameters.resultsPerPage && requestParameters.currentPage) {
+    mongoSearchObject['page'] = {
+      size: parseInt(requestParameters.resultsPerPage),
+      current: parseInt(requestParameters.currentPage)
+    }
+  }
+
+  //if sorting parameters are sent, set them for the query
+  if (requestParameters.orderBy && requestParameters.orderType) {
+    let orderByList = requestParameters.orderBy.split(',')
+    let orderTypeList = requestParameters.orderType.split(',')
+    if (orderByList.length != orderByList.length) throw new Error("Invalid ordering parameters, please ensure you have a single type for each orderer")
+    mongoSearchObject['sort'] = {}
+    orderByList.map((orderField) => {
+      let indexOfField = orderByList.indexOf(orderField)
+      switch (orderTypeList[indexOfField]) {
+        case "asc":
+          mongoSearchObject['sort'][orderField] = 1
+          break;
+        case "desc":
+          mongoSearchObject['sort'][orderField] = -1
+          break;
+        default:
+          throw new Error('Invalid sorting parameter')
+      }
+    })
+  }
+  return mongoSearchObject
+}
+
 module.exports = {
 	getKeyWords,
 	setWeeklySchedule,
