@@ -1,20 +1,22 @@
 require('dotenv').config()
 
 const csvtojson = require('csvtojson')
+const { all } = require('underscore')
 
 // FUTURE: remove comments to use SEMrush API call
 // const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
 
 const { save, saveMultiple, updateOne, find, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
-const semRushCollection = 'semrush-results'
+// const semRushCollection = 'semrush-results'
+const semRushCollection = 'teste-api'
 
 const limitCompetitorPosition = 4
 
 /* only for tests */
 let mockConfigJson = require('./mockConfig.json')
-// let rawDomainsComparison = mockConfigJson.rawDomainsComparison
-// let organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
+let rawDomainsComparison = mockConfigJson.rawDomainsComparison
+let organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
 
 function searchKeywordsList() {
 	return new Promise(async (resolve, reject) => {
@@ -30,7 +32,7 @@ function searchKeywordsList() {
 			let disqualifiedKeywords = await getDisqualifiedKeywords()
 			let alreadyElectedKeywords = await getAlreadyElectedKeywords()
 			let keywordsToDisconsider = [...disqualifiedKeywords, ...alreadyElectedKeywords]
-			
+
 			/* Recursive function 
 			search all interests keyword, its competitors information and save
 			*/
@@ -57,7 +59,6 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			const mainDomain = ['tecmundo.com.br']
 			const allDomains = [...mainDomain, ...allCompetitors[0]]
 			const numberOfDomains = allDomains.length
-			
 
 			/* create objects to use as SEMrush parameters */
 			let queryDomains = ''
@@ -78,7 +79,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			// FUTURE: remove comments to use SEMrush API call
 			/* get SEMrush domainVsDomains results */
 			// let rawDomainsComparison = await domainVsDomains({
-			// 	limitRows: 1000,
+			// 	limitRows: 20,
 			// 	type: 'domain_domains',
 			// 	database: 'br',
 			// 	domains: queryDomains,
@@ -92,54 +93,44 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 				'Search Volume': 'number',
 				[mainDomain]: 'number',
 			}
-			allCompetitors[0].map((domain) => {colParser[domain] = 'number'})
+			allCompetitors[0].map((domain) => {
+				colParser[domain] = 'number'
+			})
 			convertedDomainsComparison = []
-			rawDomainsComparison = rawDomainsComparison.map( async rowGroup => {
+			rawDomainsComparison = rawDomainsComparison.map(async (rowGroup) => {
 				let rowGroupJson = await convertResultToJson(rowGroup, colParser)
 				return convertedDomainsComparison.push(rowGroupJson)
 			})
 			rawDomainsComparison = await Promise.all(rawDomainsComparison)
 			convertedDomainsComparison = convertedDomainsComparison.flat()
 
-			/* Exclude from domains results keywords to be disconsider 
-			FUTURE: remove */
-			// convertedDomainsComparison = convertedDomainsComparison.filter( row => !keywordsToDisconsider.includes(row.Keyword)  )
+			/* Split each keyword by compared domain, already filtering by better position */
+			let splittedKeywordsByDomain = await splitKeywordsByDomain(convertedDomainsComparison, allDomains, mainDomain)
 
-			/* Finds which competitor has the best position */
-			let onlyPositionOfInterest = await defineMainAndSecondaryPosition(convertedDomainsComparison, allDomains, mainDomain)
-			
-			/* Group keywords by competitor and remove those referring to the main domain  */
-			let keywordsGrouppedByCompetitor = await groupKeywordsByCompetitor(onlyPositionOfInterest, allDomains)
-			keywordsGrouppedByCompetitor = await keywordsGrouppedByCompetitor.filter((group) => Object.keys(group)[0] !== mainDomain[0])
+			/* Remove keywords that has the main domain as better position or those keywords to be disconsider*/
+			let onlyKeywordsOfInterest = await removeKeywordsCompetitorsToDisconsider(splittedKeywordsByDomain, allDomains, keywordsToDisconsider)
+			onlyKeywordsOfInterest = await removeMainDomain(onlyKeywordsOfInterest, allDomains, mainDomain)					
 
 			// FUTURE: remove comments to use SEMrush API call
-			/* only to use on recursive function */
-			// let keywordsUngroupped = []
-			// await keywordsGrouppedByCompetitor.map((group) => {
-			// 		let groupKeywords = group[Object.keys(group)[0]]
-			// 		groupKeywords.map((keyword) => {
-			// 				keywordsUngroupped.push(keyword)
-			// 	})
-			// })			
-			// /* get SEMrush organicResults results */
-			// let organicResultsByKeyword = await queueOrganicResultsByKeyword(keywordsUngroupped, [])
+			/* get SEMrush organicResults results */
+			// let keywordsToOrganicSearch = Array.from(onlyKeywordsOfInterest)
+			// let organicResultsByKeyword = await queueOrganicResultsByKeyword(keywordsToOrganicSearch, [])
 
 			/* Convert organicResultsByKeyword to a JSON */
 			let convertedOrganicResultsByKeyword = organicResultsByKeyword.map(async (row) => {
 				let results = await convertResultToJson(row.results, null)
-				return { keyword: row.keyword, competitorPosition: row.competitorPosition, results: results }
+				return { keyword: row.keyword, results: results }
 			})
 			convertedOrganicResultsByKeyword = await Promise.all(convertedOrganicResultsByKeyword)
 
-			/* Define URL Title  and join its value to Organic Results*/ 
+			/* Define URL Title  and join its value to Organic Results*/
 			let organicResultsWithTitle = await getURlTitle(convertedOrganicResultsByKeyword, Object.values(allCompetitorsDetails)[0])
-		
-			/* Join values of keyword, competitor and organic search */ 
-			let keywordAndCompetitorInfos = await joinKeywordAndCompetitorInfos(keywordsGrouppedByCompetitor, organicResultsWithTitle)
 
-			/* Choose keywords based on title limit */ 
+			/* Join values of keyword, competitor and organic search */
+			let keywordAndCompetitorInfos = await joinKeywordAndCompetitorInfos(onlyKeywordsOfInterest, organicResultsWithTitle)
+
+			/* Choose keywords based on title limit */
 			let choosenKeywords = await chooseKeywordsByTitleLimit(keywordAndCompetitorInfos, Object.values(allCompetitorsDetails)[0])
-			// let choosenKeywords = keywordAndCompetitorInfos
 
 			let savedDocuments = await saveOrganicResults(choosenKeywords)
 			keywordsGroupped.push(savedDocuments)
@@ -195,49 +186,67 @@ async function getCompetitorsList() {
 	}
 }
 
-async function getDisqualifiedKeywords(){
+async function getDisqualifiedKeywords() {
 	try {
-		let disqualifiedKeywords = await findAll({
-			collection: 'disqualified-keywords'       
+		let currentDate = new Date()
+		let weekStartDate = new Date()
+		let weekdayNumber = currentDate.getDay()
+
+		weekStartDate.setDate(currentDate.getDate() - weekdayNumber)
+		weekStartDate.setMonth(currentDate.getMonth() - 3)
+		weekStartDate.setHours(0, 0, 0, 0)
+		filterDateQuery = {
+			createAt: {
+				$gte: weekStartDate,
+			},
+		}
+
+		let disqualifiedKeywords = await find({
+			collection: 'disqualified-keywords',
+			query: filterDateQuery,
+			fieldsToShow: {
+				_id: 0,
+				createAt: 0,
+			},
 		})
 
-		  return disqualifiedKeywords[0].Keywords
-
+		return disqualifiedKeywords
 	} catch (error) {
 		throw error
 	}
 }
 
-async function getAlreadyElectedKeywords(){
+async function getAlreadyElectedKeywords() {
 	try {
 		let currentDate = new Date()
 		let weekStartDate = new Date()
 		let weekdayNumber = currentDate.getDay()
-		
+
 		weekStartDate.setDate(currentDate.getDate() - weekdayNumber)
 		weekStartDate.setMonth(currentDate.getMonth() - 3)
 		weekStartDate.setHours(0, 0, 0, 0)
 		filterDateQuery = {
-		  "weekStartDate": {
-			"$gte": weekStartDate
-		  },
-		  scheduledKeywords: {"$exists":true }
+			weekStartDate: {
+				$gte: weekStartDate,
+			},
+			scheduledKeywords: { $exists: true },
 		}
 
 		let alreadyElectedKeywords = await find({
 			collection: 'week-plans',
 			query: filterDateQuery,
 			fieldsToShow: {
-				'scheduledKeywords.Keyword': 1
-			}     
+				'scheduledKeywords.Keyword': 1,
+				'scheduledKeywords.competitorInfo.Domain': 1,
+			},
 		})
 
 		let alreadyElectedKeywordsResponse = []
-		alreadyElectedKeywords.map( row =>{
-			row.scheduledKeywords.filter( kw => alreadyElectedKeywordsResponse.push(kw.Keyword))
+		alreadyElectedKeywords.map((row) => {
+			row.scheduledKeywords.filter((kw) => alreadyElectedKeywordsResponse.push({ Keyword: kw.Keyword, competitor: kw.competitorInfo.Domain }))
 		})
 
-		  return alreadyElectedKeywordsResponse
+		return alreadyElectedKeywordsResponse
 	} catch (error) {
 		throw error
 	}
@@ -260,35 +269,42 @@ async function convertResultToJson(result, colParser) {
 	}
 }
 
-async function defineMainAndSecondaryPosition(convertedDomainsComparison, allDomains, mainDomain){
+async function splitKeywordsByDomain(convertedDomainsComparison, allDomains, mainDomain) {
 	try {
 		let onlyPositionOfInterest = await convertedDomainsComparison.reduce(function (accumulator, row, array) {
 			let onlyDomainsPosition = []
-			row['secondaryCompetitors'] = []
-			if(row['Search Volume'] >= 500) {
-				allDomains.map((domain) => {
-					return onlyDomainsPosition.push(row[domain])
-				})
+			let objectToPushOnAcc = {}
+			if (row['Search Volume'] >= 500) {
+				allDomains.map((domain) => { return onlyDomainsPosition.push(row[domain])})
 				let min = Math.min(...onlyDomainsPosition)
+
+				let keywordByCompetitor = allDomains.map((domain) => {
+					return { competitor: domain }
+				})
 				let rowKeys = Object.keys(row)
 				rowKeys.map((key) => {
 					if (allDomains.includes(key)) {
-						if (row[key] !== min) {
-							if (key == [mainDomain]) {
-								row['nznPosition'] = row[key]
-							} 
-							else if(row[key] <= limitCompetitorPosition) {
-								row.secondaryCompetitors.push({competitor: key, competitorPosition:row[key]})
-							}
-							delete row[key]
+						let indexToModify = keywordByCompetitor.findIndex((item) => item.competitor == key)
+						if( (key == [mainDomain]) ){
+							objectToPushOnAcc['nznPosition'] = row[key]
+							keywordByCompetitor.splice(indexToModify,1)
+						} else {
+							if (row[key] <= limitCompetitorPosition && !(key == [mainDomain])) {
+								keywordByCompetitor[indexToModify]['competitorPosition'] = row[key]
+							} else keywordByCompetitor.splice(indexToModify,1)
 						}
+
+						objectToPushOnAcc['competitors'] = keywordByCompetitor
+					} else {
+							objectToPushOnAcc[key] = row[key]
 					}
 				})
-				if(row.secondaryCompetitors.length==0) delete row.secondaryCompetitors
-				accumulator.push(row)
-			} 
+				accumulator.push(objectToPushOnAcc)
+				// console.log()
+			}
 			return accumulator
 		}, [])
+
 		// onlyPositionOfInterest = Boolean(...onlyPositionOfInterest)
 		return onlyPositionOfInterest
 	} catch (error) {
@@ -296,26 +312,60 @@ async function defineMainAndSecondaryPosition(convertedDomainsComparison, allDom
 	}
 }
 
-async function groupKeywordsByCompetitor(onlyPositionOfInterest, allDomains){
+async function removeKeywordsCompetitorsToDisconsider( onlyKeywordsOfInterest, allDomains, keywordsToDisconsider ) {
 	try {
-		let keywordsGroupped = await onlyPositionOfInterest.reduce((accumulator, row) => {
-			let keys = Object.keys(row)
-			const competitorKey = keys.filter((a) => allDomains.includes(a))[0]
-			row['competitorPosition'] = row[competitorKey]
-			delete row[competitorKey]
-
-			var indexOfCompetitor = accumulator.findIndex((i) => Object.keys(i)[0] === competitorKey)
-
-			if (indexOfCompetitor === -1) {
-				accumulator.push({ [competitorKey]: [row] })
-			} else {
-				accumulator[indexOfCompetitor][competitorKey].push(row)
+		
+		let choosenKeywords =[]
+		let x = onlyKeywordsOfInterest.map( (row, indexRow) =>{
+			let keyword = row.Keyword
+			let newCompetitors2 = []
+			let newCompetitors = row.competitors.map( (details, indexDetails) => {
+				let competitor = details.competitor				
+				let kwExists = keywordsToDisconsider.filter( kw => {
+					if(kw.Keyword == keyword && kw.competitor==competitor) return true
+					else return false
+				})
+				if(kwExists.length == 0 ) newCompetitors2.push(details)
+				return newCompetitors2
+				console.log()
+			})
+			
+			if(newCompetitors2.length != 0) {
+				row.competitors = newCompetitors2
+				choosenKeywords.push(row)
 			}
-			return accumulator
+			return onlyKeywordsOfInterest
+			console.log()
+		})
+
+		return choosenKeywords
+	} catch (error) {
+		throw error
+	}
+}
+
+async function removeMainDomain(splittedKeywordsByDomain, allDomains, mainDomain) {
+	try {
+		splittedKeywordsByDomain = await splittedKeywordsByDomain.reduce((accumulator, row) => {
+			// let min = 
+			let onlyDomainsPosition =[]
+			onlyDomainsPosition.push(row.nznPosition)
+			row.competitors.map( competitor =>{
+				return onlyDomainsPosition.push(competitor.competitorPosition)
+			} )
+			let min = Math.min(...onlyDomainsPosition)
+			if( min !== row.nznPosition ){
+				let mainIndex = row.competitors.findIndex( competitor => competitor.competitorPosition == min)
+				row.competitors.map( (competitor, index) =>{
+					if( index == mainIndex ) row.competitors[mainIndex]['main'] = true
+					else row.competitors[index]['main'] = false
+				})
+				accumulator.push(row)
+			}  
+			 return accumulator
 		}, [])
 
-		return keywordsGroupped
-
+		return splittedKeywordsByDomain
 	} catch (error) {
 		throw error
 	}
@@ -330,8 +380,8 @@ async function queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicR
 				exportColumns: 'Dn,Ur,Fk',
 			})
 			let keyword = keywordsUngroupped[0].Keyword
-			let position = keywordsUngroupped[0].competitorPosition
-			keywordsOrganicResults.push({ keyword: keyword, competitorPosition: position, results: x })
+			// let position = keywordsUngroupped[0].competitorPosition
+			keywordsOrganicResults.push({ keyword: keyword, results: x })
 			keywordsUngroupped.splice(0, 1)
 			return await queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicResults)
 		} else {
@@ -345,22 +395,24 @@ async function queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicR
 async function getURlTitle(organicResults, allCompetitorsDetails) {
 	try {
 		let organicResultsMap = await organicResults.map((row, index) => {
-			row.results.map( (result, indexResult) =>{
-				let competitorDetail = allCompetitorsDetails.filter( competitor => competitor.URL === result.Domain )
+			row.results.map((result, indexResult) => {
+				let competitorDetail = allCompetitorsDetails.filter((competitor) => competitor.URL === result.Domain)
 				let url = result.Url.split('/')
 				url = url.filter((item) => item)
 
 				let splitPosition = url.length - 1
 				let splittedTitle = url[splitPosition].split('-')
 				if (competitorDetail[0] && competitorDetail[0].specialTitleTreatment) {
-					if(competitorDetail[0].specialTitleTreatment.titlePosition) {
+					if (competitorDetail[0].specialTitleTreatment.titlePosition) {
 						splitPosition = url.length + competitorDetail[0].specialTitleTreatment.titlePosition
 						splittedTitle = url[splitPosition].split('-')
 					}
 				}
 				let title = ''
-				splittedTitle.map((word) => { title = title + ` ${word}` })
-				
+				splittedTitle.map((word) => {
+					title = title + ` ${word}`
+				})
+
 				organicResults[index].results[indexResult]['title'] = title.trim()
 				organicResults[index].results[indexResult]['titleLength'] = splittedTitle.length
 			})
@@ -374,27 +426,16 @@ async function getURlTitle(organicResults, allCompetitorsDetails) {
 	}
 }
 
-async function joinKeywordAndCompetitorInfos(keywordsGrouppedByCompetitor, organicResultsWithTitle) {
+async function joinKeywordAndCompetitorInfos(onlyKeywordsOfInterest, organicResultsWithTitle) {
 	try {
-		let keywordAndCompetitorInfos = await keywordsGrouppedByCompetitor.map(async (item) => {
-			let competitor = Object.keys(item)[0]
-			let keywords = Object.values(item)[0]
-			let keywordsMap = await keywords.map(async (keyword, index) => {
-				let keywordInfo = organicResultsWithTitle.filter((kwInfo) => kwInfo.keyword == keyword.Keyword)
-				console.log(keywordInfo)
-				item[competitor][index]['competitorInfo'] = keywordInfo[0].results[keyword.competitorPosition-1]
-				item[competitor][index]['ctr'] = await defineCtrValue(keywordInfo[0].competitorPosition)
-
-				if(keyword.secondaryCompetitors) {
-					keyword.secondaryCompetitors.map( (secondary, indexSecondary) =>{
-						console.log(keywordInfo)
-						item[competitor][index].secondaryCompetitors[indexSecondary]['competitorInfo'] = keywordInfo[0].results[secondary.competitorPosition-1]
-					})
-				}
-				return item
+		let keywordAndCompetitorInfos = await onlyKeywordsOfInterest.map(async (item, indexItem) => { 
+			let organicResultIndex = organicResultsWithTitle.findIndex( row=> row.keyword== item.Keyword)
+			await item.competitors.map( async (competitor, indexCompetitor) => {
+				let position = competitor.competitorPosition
+				item.competitors[indexCompetitor]['competitorInfo'] = organicResultsWithTitle[organicResultIndex].results[position-1]
+				item.competitors[indexCompetitor]['ctr'] = await defineCtrValue(position)
 			})
-			keywordsMap = await Promise.all(keywordsMap)
-			return item
+			return item 
 		})
 		keywordAndCompetitorInfos = await Promise.all(keywordAndCompetitorInfos)
 		return keywordAndCompetitorInfos
@@ -403,56 +444,34 @@ async function joinKeywordAndCompetitorInfos(keywordsGrouppedByCompetitor, organ
 	}
 }
 
-async function chooseKeywordsByTitleLimit(keywordAndCompetitorInfos, allCompetitorsDetails){
+async function chooseKeywordsByTitleLimit(keywordAndCompetitorInfos, allCompetitorsDetails) {
 	try {
 		let choosenKeywords = []
-		/* Remove main competitors */
-		let keywordAndCompetitorInfosMap =  await keywordAndCompetitorInfos.map( (kwInfo, index) =>{
-			let competitor = Object.keys(kwInfo)[0]
-			let competitorDetail = allCompetitorsDetails.filter( compet => compet.URL === competitor )
-			let keywords = Object.values(kwInfo)[0]
+		let keywordAndCompetitorInfosMap = await keywordAndCompetitorInfos.map( async (kwInfo, index) =>{
+			let newCompetitors = []
+			let competitorsMap = await kwInfo.competitors.map( async (competitor, indexCompetitor) =>{
+				let competitorDomain = competitor.competitor
+				let competitorDetail = allCompetitorsDetails.filter((compet) => compet.URL === competitorDomain)
+				let titleLength = competitor.competitorInfo.titleLength
 
-			keywords = keywords.reduce( (accumulator, keyword, indexKeyword) => {
-				let titleLength = keyword.competitorInfo.titleLength
-				if( competitorDetail[0].specialTitleTreatment ) {
-					if( competitorDetail[0].specialTitleTreatment.ignoreLimit || titleLength >= 4) accumulator.push(keyword)
-				}
-				else if ( titleLength >= 4 ) accumulator.push(keyword)
-
-				return accumulator
-			}, [])
-			choosenKeywords.push({[competitor]:keywords})
-			return choosenKeywords
+				let choosenCompetitors = []
+				if (competitorDetail[0].specialTitleTreatment) {
+					if (competitorDetail[0].specialTitleTreatment.ignoreLimit || titleLength >= 4) {
+						newCompetitors.push(competitor)
+					}
+				} else if (titleLength >= 4) {
+					newCompetitors.push(competitor)
+				} 
+				return newCompetitors
+			})
+			competitorsMap = await Promise.all(competitorsMap)
+			kwInfo.competitors = newCompetitors
+			if (  newCompetitors.length > 0 ) {
+				choosenKeywords.push(kwInfo)
+			}
 		})
 		keywordAndCompetitorInfosMap = await Promise.all(keywordAndCompetitorInfosMap)
 
-		/* Remove secondary competitors */
-		await choosenKeywords.map( (kwInfo, indexChoosen) =>{
-			let keywords = Object.values(kwInfo)[0]
-			let competitor = Object.keys(kwInfo)[0]
-			keywords.map( (keyword, indexKey) =>{
-				if(keyword.secondaryCompetitors) {
-					keyword.secondaryCompetitors.map( (secCompetitor, indexSecCompetitor) => {
-						let secCompetitorInfo = secCompetitor.competitorInfo
-						let secCompetitorDetail = allCompetitorsDetails.filter( compet => compet.URL === secCompetitorInfo.Domain )
-						let secCompetitorTitleLength =  secCompetitorInfo.titleLength
-						if( secCompetitorDetail[0].specialTitleTreatment ) {
-							if( !secCompetitorDetail[0].specialTitleTreatment.ignoreLimit || secCompetitorTitleLength < 4) {
-								choosenKeywords[indexChoosen][competitor][indexKey].secondaryCompetitors.splice(indexSecCompetitor,1)
-							}
-						}
-						else if ( secCompetitorTitleLength < 4 ) { 
-							choosenKeywords[indexChoosen][competitor][indexKey].secondaryCompetitors.splice(indexSecCompetitor,1)
-						}
-					})
-					if( choosenKeywords[indexChoosen][competitor][indexKey].secondaryCompetitors.length == 0) {
-						delete choosenKeywords[indexChoosen][competitor][indexKey].secondaryCompetitors
-					}
-				}
-
-			})
-		})
-		
 		return choosenKeywords
 	} catch (error) {
 		throw error
@@ -469,7 +488,7 @@ async function defineCtrValue(competitorPosition) {
 			case 3:
 				return 18.66
 			case 4:
-				return 13.60
+				return 13.6
 		}
 	} catch (error) {
 		throw error
@@ -477,31 +496,30 @@ async function defineCtrValue(competitorPosition) {
 }
 async function saveOrganicResults(organicResults) {
 	try {
-
 		let documentsToSave = []
 
 		organicResults.map(async (item) => {
-			let competitor = Object.keys(item)[0]
-			let keywordsValue = Object.values(item)[0]
-
-			keywordsValue.map(keywordObject => {
-				keywordObject['competitor'] = competitor 
-				documentsToSave.push(keywordObject)
-			});
+			let competitors = item.competitors
+			delete item.competitors
+			let comumKeys = Object.keys(item)
+			competitors.map( (competitor, indexCompetitor) => {
+				comumKeys.map( key =>{
+					competitors[indexCompetitor][key] = item[key]
+				})
+				documentsToSave.push(competitors[indexCompetitor])
+			})
 		})
 
-		if(documentsToSave.length > 0) {
+		if (documentsToSave.length > 0) {
 			let saveResult = await saveMultiple({
-				collection:semRushCollection,
-				documents: documentsToSave
+				collection: semRushCollection,
+				documents: documentsToSave,
 			})
 			console.log('>>> Finalizando etapa')
 			console.log('>>> Resultados')
 			console.log(organicResults)
 			return saveResult
-		}
-		else return 
-
+		} else return
 	} catch (error) {
 		throw error
 	}
