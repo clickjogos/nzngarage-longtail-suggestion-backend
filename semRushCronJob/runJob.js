@@ -14,9 +14,9 @@ const semRushCollection = 'semrush-results'
 const limitCompetitorPosition = 4
 
 /* only for tests */
-let mockConfigJson = require('./mockConfig.json')
-let rawDomainsComparison = mockConfigJson.rawDomainsComparison
-let organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
+// let mockConfigJson = require('./mockConfig.json')
+// let rawDomainsComparison = mockConfigJson.rawDomainsComparison
+// let organicResultsByKeyword = mockConfigJson.organicResultsByKeyword
 
 function searchKeywordsList() {
 	return new Promise(async (resolve, reject) => {
@@ -399,8 +399,8 @@ async function queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicR
 
 async function getURlTitle(organicResults, allCompetitorsDetails) {
 	try {
-		let organicResultsMap = await organicResults.map((row, index) => {
-			row.results.map((result, indexResult) => {
+		let organicResultsMap = await organicResults.map(async (row, index) => {
+			let rowsMap = row.results.map(async (result, indexResult) => {
 				let competitorDetail = allCompetitorsDetails.filter((competitor) => competitor.URL === result.Domain)
 				let url = result.Url.split('/')
 				url = url.filter((item) => item)
@@ -418,14 +418,35 @@ async function getURlTitle(organicResults, allCompetitorsDetails) {
 					title = title + ` ${word}`
 				})
 
-				organicResults[index].results[indexResult]['title'] = title.trim()
+				/* Cleaning title */ 
+				let normalizedTitle = await normalizeTitle(title, competitorDetail)
+
+				organicResults[index].results[indexResult]['title'] = normalizedTitle
 				organicResults[index].results[indexResult]['titleLength'] = splittedTitle.length
 			})
+			rowsMap = await Promise.all(rowsMap)
 			return organicResults
 		})
 
 		await Promise.all(organicResultsMap)
 		return organicResults
+	} catch (error) {
+		throw error
+	}
+}
+
+async function normalizeTitle(title, competitorDetail) {
+	try {
+		title = title.replace(/.ghtml/, '')
+		title = title.replace(/.html/, '')
+		title = title.replace(/.htm/, '')
+		if( competitorDetail[0] && !competitorDetail[0].specialTitleTreatment ) {
+			title =  title.replace(/\b\d{5}\b/, '') 
+			title =  title.replace(/\b\d{6}\b/, '') 
+			title =  title.replace(/\b\d{8}\b/, '') 
+		}	
+		title = title.trim()
+		return title
 	} catch (error) {
 		throw error
 	}
