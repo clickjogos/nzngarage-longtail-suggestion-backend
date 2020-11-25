@@ -7,45 +7,11 @@ const { searchKeywordsListByCompetitor } = require("./semRushController")
 async function getKeyWords(params) {
   try {
 
+    let mongoSearchObject = setupMongoFilters(params, "semrush-results")
 
-    let mongoSearchObject = {
-      collection: "semrush-results",
-      query: {}
-    }
-
-
-    if(params.domain){
-      mongoSearchObject.query["competitor"] = params.domain
-    }
-
-    //if page parameter is sent, set it for the query
-    if (params.resultsPerPage && params.currentPage) {
-      mongoSearchObject['page'] = {
-        size: parseInt(params.resultsPerPage),
-        current: parseInt(params.currentPage)
-      }
-    }
-
-    //if sorting parameters are sent, set them for the query
-    if (params.orderBy && params.orderType) {
-      let orderByList = params.orderBy.split(',')
-      let orderTypeList = params.orderType.split(',')
-      if(orderByList.length!=orderByList.length) throw new Error("Invalid ordering parameters, please ensure you have a single type for each orderer")
-      mongoSearchObject['sort'] = {}
-      orderByList.map((orderField) => {
-        let indexOfField = orderByList.indexOf(orderField)
-        switch (orderTypeList[indexOfField]) {
-          case "asc":
-            mongoSearchObject['sort'][orderField] = 1
-            break;
-          case "desc":
-            mongoSearchObject['sort'][orderField] = -1
-            break;
-          default:
-            throw new Error('Invalid sorting parameter')
-        }
-      })
-
+    //if domain name parameter is sent, set it for the query
+    if (requestParameters.domain) {
+      mongoSearchObject.query["competitor"] = requestParameters.domain
     }
 
     let competitors = await mongodbConnector.list(mongoSearchObject)
@@ -83,6 +49,7 @@ async function setWeeklySchedule(params) {
     let weekdayNumber = currentDate.getDay()
     startDate.setDate(currentDate.getDate() - weekdayNumber)
     startDate.setHours(0, 0, 0, 0);
+
 
     let plans = await mongodbConnector.list({
       collection: "week-plans",
@@ -153,50 +120,31 @@ async function setWeeklySchedule(params) {
 }
 
 
-// retrieveWeeklySchedule - retrieves a weekly keyword schedule in the database
-// the date parameters must be in the format "YYYY-MM-DD" 
+// retrieveWeeklySchedule - retrieves a weekly keyword schedule in the database the date parameters must be in the format "YYYY-MM-DD" 
 async function retrieveWeeklySchedule(params) {
   try {
 
-    let filterDateQuery;
+    let mongoSearchObject = setupMongoFilters(params, "week-plans");
 
     //if the user specify intervals, retrieve every object in that date interval 
     if (params.startDate && params.endDate) {
-      try {
-        var startDateFilter = new Date(params.startDate)
-        var endDateFilter = new Date(params.endDate)
-      } catch (error) {
-        throw new Error("Invalid date format for parameters\nERROR:\n" + JSON.stringify(error))
-      }
-
-      startDateFilter.setHours(0, 0, 0, 0);
-      endDateFilter.setHours(23, 59, 59, 999);
-
-      filterDateQuery = {
-        "weekStartDate": {
-          "$gte": startDateFilter,
-          "$lte": endDateFilter
-        }
-      }
+      mongoSearchObject.query['weekStartDate'] = setDateIntervalFilter(params.startDate,params.endDate)
     }
-
     //if date not specified, get for the current week
     else {
-      let currentDate = new Date();
-      let weekStartDate = new Date()
-      let weekdayNumber = currentDate.getDay()
-      weekStartDate.setDate(currentDate.getDate() - weekdayNumber)
-      weekStartDate.setHours(0, 0, 0, 0);
-      filterDateQuery = {
-        "weekStartDate": {
-          "$gte": weekStartDate
-        }
+      let weekStartDate = getCurrentWeekStartDate()
+      mongoSearchObject.query['weekStartDate'] = {
+        "$gte": weekStartDate
       }
     }
-    let plans = await mongodbConnector.list({
-      collection: "week-plans",
-      query: filterDateQuery
-    })
+
+    //if textSearch parameter is passed, add a filter for keyword and title
+    // if(params.textSearch){
+
+    // }
+
+
+    let plans = await mongodbConnector.list(mongoSearchObject)
 
     let result = {
       schedule: plans.list
@@ -210,6 +158,70 @@ async function retrieveWeeklySchedule(params) {
     console.log(error)
     throw new Error(err)
   }
+}
+
+function getCurrentWeekStartDate() {
+  let currentDate = new Date();
+  let currentWeekStartDate = new Date()
+  let weekdayNumber = currentDate.getDay()
+  currentWeekStartDate.setDate(currentDate.getDate() - weekdayNumber)
+  currentWeekStartDate.setHours(0, 0, 0, 0);
+  return currentWeekStartDate
+}
+
+//setDateIntervalFilters receives two date strings in the YYYY-MM-DD format and returns a mongo-formated date filter 
+function setDateIntervalFilter(startDate, endDate) {
+  try {
+    var startDateFilter = new Date(startDate)
+    var endDateFilter = new Date(endDate)
+    startDateFilter.setHours(0, 0, 0, 0);
+    endDateFilter.setHours(23, 59, 59, 999);
+    let filterObject = {
+      "$gte": startDateFilter,
+      "$lte": endDateFilter
+    }
+    return filterObject
+  } catch (error) {
+    throw new Error("Invalid date format for parameters\nERROR:\n" + JSON.stringify(error))
+  }
+}
+
+
+function setupMongoFilters(requestParameters, collectionName) {
+  let mongoSearchObject = {
+    collection: collectionName,
+    query: {}
+  }
+
+  //if page parameter is sent, set it for the query
+  if (requestParameters.resultsPerPage && requestParameters.currentPage) {
+    mongoSearchObject['page'] = {
+      size: parseInt(requestParameters.resultsPerPage),
+      current: parseInt(requestParameters.currentPage)
+    }
+  }
+
+  //if sorting parameters are sent, set them for the query
+  if (requestParameters.orderBy && requestParameters.orderType) {
+    let orderByList = requestParameters.orderBy.split(',')
+    let orderTypeList = requestParameters.orderType.split(',')
+    if (orderByList.length != orderByList.length) throw new Error("Invalid ordering parameters, please ensure you have a single type for each orderer")
+    mongoSearchObject['sort'] = {}
+    orderByList.map((orderField) => {
+      let indexOfField = orderByList.indexOf(orderField)
+      switch (orderTypeList[indexOfField]) {
+        case "asc":
+          mongoSearchObject['sort'][orderField] = 1
+          break;
+        case "desc":
+          mongoSearchObject['sort'][orderField] = -1
+          break;
+        default:
+          throw new Error('Invalid sorting parameter')
+      }
+    })
+  }
+  return mongoSearchObject
 }
 
 module.exports = {
