@@ -9,7 +9,7 @@ const { all } = require('underscore')
 const { save, saveMultiple, updateOne, find, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
 // const semRushCollection = 'semrush-results'
-const semRushCollection = 'teste-api'
+const semRushCollection = 'semrush-results'
 
 const limitCompetitorPosition = 4
 
@@ -102,7 +102,12 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 				return convertedDomainsComparison.push(rowGroupJson)
 			})
 			rawDomainsComparison = await Promise.all(rawDomainsComparison)
-			convertedDomainsComparison = convertedDomainsComparison.flat()
+			
+			let tempArray = convertedDomainsComparison
+			convertedDomainsComparison = [];
+			tempArray.map((innerArray)=>{
+				convertedDomainsComparison.push(...innerArray)
+			})
 
 			/* Split each keyword by compared domain, already filtering by better position */
 			let splittedKeywordsByDomain = await splitKeywordsByDomain(convertedDomainsComparison, allDomains, mainDomain)
@@ -506,6 +511,7 @@ async function saveOrganicResults(organicResults) {
 				comumKeys.map( key =>{
 					competitors[indexCompetitor][key] = item[key]
 				})
+				competitors[indexCompetitor]['simplyfiedKeyword'] = item.Keyword.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
 				documentsToSave.push(competitors[indexCompetitor])
 			})
 		})
