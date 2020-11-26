@@ -92,6 +92,10 @@ async function getKeyWords(params) {
 
 		var keyWords = {
 			keyWordsArray: [],
+			currentPage: competitors.page.current,
+			totalPages: Math.ceil(competitors.page.total/competitors.page.size),
+			totalRows: competitors.page.total
+			
 		}
 		if (competitors) {
 			keywordsGroupped.map(keyword => {
