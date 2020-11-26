@@ -50,40 +50,42 @@ async function getKeyWords(params) {
 		let onlyMainKeywords = competitors.list
 
 		let selectedKeywords = []
-		await onlyMainKeywords.map( row => {
+		await onlyMainKeywords.map(row => {
 			let keywordToFind = row.Keyword
-			selectedKeywords.push({Keyword: keywordToFind})
+			selectedKeywords.push({ Keyword: keywordToFind })
 		})
 
 		let secondaryCompetitors = await mongodbConnector.find({
 			collection: 'semrush-results',
 			query: {
-				$and: [ 
-					{main: false},
-					{$or: selectedKeywords}
+				$and: [
+					{ main: false },
+					{ $or: selectedKeywords }
 				]
 			}
 		})
 
-		let allKeywords = [...onlyMainKeywords, ...secondaryCompetitors ]
+		let allKeywords = [...onlyMainKeywords, ...secondaryCompetitors]
 		let keywordsGroupped = _(allKeywords)
 			.groupBy('Keyword')
-			.map(function(g, key) { 
+			.map(function (group, key) {
 				return {
 					Keyword: key,
-					"Number of Results": g[0]["Number of Results"],
-					"nznPosition": g[0]["nznPosition"],
-					"Search Volume": g[0]["Search Volume"],
-					competitors: g,
+					simplyfiedKeyword: group[0]["simplyfiedKeyword"],
+					"Number of Results": group[0]["Number of Results"],
+					"nznPosition": group[0]["nznPosition"],
+					"Search Volume": group[0]["Search Volume"],
+					competitors: group
 				}
-			;})
+					;
+			})
 			.value()
 
-		let keysToRemove = ['ctr', 'Number of Results', 'Search Volume', 'nznPosition', 'Keyword']
-			keywordsGroupped.map( (kwGroup, indexGroup)=>{
-				keysToRemove.map( key =>{ 
-					kwGroup.competitors.map( (competitor, indexCompetitor)=>{
-						delete keywordsGroupped[indexGroup].competitors[indexCompetitor][key]
+		let keysToRemove = ['ctr', 'Number of Results', 'Search Volume', 'nznPosition', 'Keyword', 'simplyfiedKeyword']
+		keywordsGroupped.map((kwGroup, indexGroup) => {
+			keysToRemove.map(key => {
+				kwGroup.competitors.map((competitor, indexCompetitor) => {
+					delete keywordsGroupped[indexGroup].competitors[indexCompetitor][key]
 				})
 			})
 		})
@@ -92,7 +94,7 @@ async function getKeyWords(params) {
 			keyWordsArray: [],
 		}
 		if (competitors) {
-			keywordsGroupped.map( keyword =>{
+			keywordsGroupped.map(keyword => {
 				keyWords.keyWordsArray.push(keyword)
 			})
 			return keyWords
@@ -142,9 +144,10 @@ async function setWeeklySchedule(params) {
 		}
 
 		params.selectedKeywords.map((keywordObject) => {
-			keywordObject['title'] = ''
-			keywordObject['tag'] = ''
-			keywordObject['internalBacklinks'] = []
+			keywordObject['title'] = keywordObject.title?keywordObject.title:''
+			keywordObject['simplyfiedTitle'] = keywordObject.title.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+			keywordObject['tag'] = keywordObject.tag?keywordObject.tag:''
+			keywordObject['internalBacklinks'] = keywordObject.internalBacklinks?keywordObject.internalBacklinks:[]
 			scheduleObject.scheduledKeywords.push(keywordObject)
 		})
 
@@ -187,45 +190,44 @@ async function setWeeklySchedule(params) {
 // the date parameters must be in the format "YYYY-MM-DD"
 async function retrieveWeeklySchedule(params) {
 	try {
-		let filterDateQuery
+
+		let mongoSearchObject = setupMongoFilters(params, 'week-plans')
+
 
 		//if the user specify intervals, retrieve every object in that date interval
 		if (params.startDate && params.endDate) {
-			try {
-				var startDateFilter = new Date(params.startDate)
-				var endDateFilter = new Date(params.endDate)
-			} catch (error) {
-				throw new Error('Invalid date format for parameters\nERROR:\n' + JSON.stringify(error))
-			}
+			mongoSearchObject.query['weekStartDate'] = setDateIntervalFilter(params.startDate, params.endDate)
+		}
 
-			startDateFilter.setHours(0, 0, 0, 0)
-			endDateFilter.setHours(23, 59, 59, 999)
 
-			filterDateQuery = {
-				weekStartDate: {
-					$gte: startDateFilter,
-					$lte: endDateFilter,
-				},
+		if (params.keywordFilter) {
+			let reducedKeywordFilter = params.keywordFilter.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+			mongoSearchObject.query['scheduledKeywords'] = {
+				"$elemMatch": {
+					"simplyfiedKeyword": new RegExp(reducedKeywordFilter,'i')
+				}
 			}
+			
+		}
+
+		if (params.titleFilter) {
+			let reducedTitleFilter = params.titleFilter.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+			mongoSearchObject.query['scheduledKeywords'] = {
+				"$elemMatch": {
+					"simplyfiedTitle": new RegExp(reducedTitleFilter,'i')
+				}
+			}
+			
 		}
 
 		//if date not specified, get for the current week
 		else {
-			let currentDate = new Date()
-			let weekStartDate = new Date()
-			let weekdayNumber = currentDate.getDay()
-			weekStartDate.setDate(currentDate.getDate() - weekdayNumber)
-			weekStartDate.setHours(0, 0, 0, 0)
-			filterDateQuery = {
-				weekStartDate: {
-					$gte: weekStartDate,
-				},
+			let weekStartDate = getCurrentWeekStartDate();
+			mongoSearchObject.query['weekStartDate'] = {
+				$gte: weekStartDate,
 			}
 		}
-		let plans = await mongodbConnector.list({
-			collection: 'week-plans',
-			query: filterDateQuery,
-		})
+		let plans = await mongodbConnector.list(mongoSearchObject)
 
 		let result = {
 			schedule: plans.list,
@@ -248,27 +250,27 @@ async function disqualifyKeywords(params) {
 
 		keyword = keyword.trim()
 		competitor = competitor.trim()
-		
+
 		/* Find all keyword's documents related  */
 		let keywordDocuments = await mongodbConnector.find({
 			collection: 'semrush-results',
 			query: { Keyword: keyword },
 		})
-	
-		let documentToRemove = keywordDocuments.filter( document => document.competitor == competitor )[0]
-		if( !documentToRemove.main ) {
+
+		let documentToRemove = keywordDocuments.filter(document => document.competitor == competitor)[0]
+		if (!documentToRemove.main) {
 			await mongodbConnector.deleteOne({
 				collection: 'semrush-results',
 				query: { Keyword: keyword, competitor: competitor },
 			})
 		} else {
 			let oldMin = documentToRemove.competitorPosition
-			let onlyCompetitorsPosition = await keywordDocuments.map( (document) => {
-				if(document.competitorPosition != oldMin ) return document.competitorPosition
+			let onlyCompetitorsPosition = await keywordDocuments.map((document) => {
+				if (document.competitorPosition != oldMin) return document.competitorPosition
 				else return 999
 			})
 			let newMin = Math.min(...onlyCompetitorsPosition)
-			let documentToUpdate = keywordDocuments.filter( document => document.competitorPosition == newMin )[0]
+			let documentToUpdate = keywordDocuments.filter(document => document.competitorPosition == newMin)[0]
 
 			await mongodbConnector.deleteOne({
 				collection: 'semrush-results',
@@ -279,16 +281,16 @@ async function disqualifyKeywords(params) {
 				filter: {
 					_id: documentToUpdate._id,
 				},
-				update: {$set: {main: true}}
+				update: { $set: { main: true } }
 			})
 		}
-		
+
 		await mongodbConnector.save({
 			collection: 'disqualified-keywords',
 			document: { Keyword: keyword, competitor: competitor, createAt: currentDate },
 		})
 
-		return {keyword,competitor}
+		return { keyword, competitor }
 	} catch (error) {
 		console.log(error)
 		throw new Error(err)
@@ -296,68 +298,70 @@ async function disqualifyKeywords(params) {
 }
 
 function getCurrentWeekStartDate() {
-  let currentDate = new Date();
-  let currentWeekStartDate = new Date()
-  let weekdayNumber = currentDate.getDay()
-  currentWeekStartDate.setDate(currentDate.getDate() - weekdayNumber)
-  currentWeekStartDate.setHours(0, 0, 0, 0);
-  return currentWeekStartDate
+	let currentDate = new Date();
+	let currentWeekStartDate = new Date()
+	let weekdayNumber = currentDate.getDay()
+	currentWeekStartDate.setDate(currentDate.getDate() - weekdayNumber)
+	currentWeekStartDate.setHours(0, 0, 0, 0);
+	return currentWeekStartDate
 }
 
 //setDateIntervalFilters receives two date strings in the YYYY-MM-DD format and returns a mongo-formated date filter 
 function setDateIntervalFilter(startDate, endDate) {
-  try {
-    var startDateFilter = new Date(startDate)
-    var endDateFilter = new Date(endDate)
-    startDateFilter.setHours(0, 0, 0, 0);
-    endDateFilter.setHours(23, 59, 59, 999);
-    let filterObject = {
-      "$gte": startDateFilter,
-      "$lte": endDateFilter
-    }
-    return filterObject
-  } catch (error) {
-    throw new Error("Invalid date format for parameters\nERROR:\n" + JSON.stringify(error))
-  }
+	try {
+		var startDateFilter = new Date(startDate)
+		var endDateFilter = new Date(endDate)
+		startDateFilter.setHours(0, 0, 0, 0);
+		endDateFilter.setHours(23, 59, 59, 999);
+		let filterObject = {
+			"$gte": startDateFilter,
+			"$lte": endDateFilter
+		}
+		return filterObject
+	} catch (error) {
+		throw new Error("Invalid date format for parameters\nERROR:\n" + JSON.stringify(error))
+	}
 }
 
 
 function setupMongoFilters(requestParameters, collectionName) {
-  let mongoSearchObject = {
-    collection: collectionName,
-    query: {}
-  }
+	let mongoSearchObject = {
+		collection: collectionName,
+		query: {}
+	}
 
-  //if page parameter is sent, set it for the query
-  if (requestParameters.resultsPerPage && requestParameters.currentPage) {
-    mongoSearchObject['page'] = {
-      size: parseInt(requestParameters.resultsPerPage),
-      current: parseInt(requestParameters.currentPage)
-    }
-  }
+	//if page parameter is sent, set it for the query
+	if (requestParameters.resultsPerPage && requestParameters.currentPage) {
+		mongoSearchObject['page'] = {
+			size: parseInt(requestParameters.resultsPerPage),
+			current: parseInt(requestParameters.currentPage)
+		}
+	}
 
-  //if sorting parameters are sent, set them for the query
-  if (requestParameters.orderBy && requestParameters.orderType) {
-    let orderByList = requestParameters.orderBy.split(',')
-    let orderTypeList = requestParameters.orderType.split(',')
-    if (orderByList.length != orderByList.length) throw new Error("Invalid ordering parameters, please ensure you have a single type for each orderer")
-    mongoSearchObject['sort'] = {}
-    orderByList.map((orderField) => {
-      let indexOfField = orderByList.indexOf(orderField)
-      switch (orderTypeList[indexOfField]) {
-        case "asc":
-          mongoSearchObject['sort'][orderField] = 1
-          break;
-        case "desc":
-          mongoSearchObject['sort'][orderField] = -1
-          break;
-        default:
-          throw new Error('Invalid sorting parameter')
-      }
-    })
-  }
-  return mongoSearchObject
+	//if sorting parameters are sent, set them for the query
+	if (requestParameters.orderBy && requestParameters.orderType) {
+		let orderByList = requestParameters.orderBy.split(',')
+		let orderTypeList = requestParameters.orderType.split(',')
+		if (orderByList.length != orderByList.length) throw new Error("Invalid ordering parameters, please ensure you have a single type for each orderer")
+		mongoSearchObject['sort'] = {}
+		orderByList.map((orderField) => {
+			let indexOfField = orderByList.indexOf(orderField)
+			switch (orderTypeList[indexOfField]) {
+				case "asc":
+					mongoSearchObject['sort'][orderField] = 1
+					break;
+				case "desc":
+					mongoSearchObject['sort'][orderField] = -1
+					break;
+				default:
+					throw new Error('Invalid sorting parameter')
+			}
+		})
+	}
+	return mongoSearchObject
 }
+
+
 
 module.exports = {
 	getKeyWords,
