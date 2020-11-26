@@ -144,10 +144,10 @@ async function setWeeklySchedule(params) {
 		}
 
 		params.selectedKeywords.map((keywordObject) => {
-			keywordObject['title'] = keywordObject.title?keywordObject.title:''
+			keywordObject['title'] = keywordObject.title ? keywordObject.title : ''
 			keywordObject['simplyfiedTitle'] = keywordObject.title.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-			keywordObject['tag'] = keywordObject.tag?keywordObject.tag:''
-			keywordObject['internalBacklinks'] = keywordObject.internalBacklinks?keywordObject.internalBacklinks:[]
+			keywordObject['tag'] = keywordObject.tag ? keywordObject.tag : ''
+			keywordObject['internalBacklinks'] = keywordObject.internalBacklinks ? keywordObject.internalBacklinks : []
 			scheduleObject.scheduledKeywords.push(keywordObject)
 		})
 
@@ -199,25 +199,21 @@ async function retrieveWeeklySchedule(params) {
 			mongoSearchObject.query['weekStartDate'] = setDateIntervalFilter(params.startDate, params.endDate)
 		}
 
+		if (params.keywordFilter || params.titleFilter) {
+			mongoSearchObject.query['scheduledKeywords'] = {
+				"$elemMatch": {
+				}
+			}
+		}
 
 		if (params.keywordFilter) {
 			let reducedKeywordFilter = params.keywordFilter.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-			mongoSearchObject.query['scheduledKeywords'] = {
-				"$elemMatch": {
-					"simplyfiedKeyword": new RegExp(reducedKeywordFilter,'i')
-				}
-			}
-			
+			mongoSearchObject.query.scheduledKeywords["$elemMatch"]["simplyfiedKeyword"] = new RegExp(reducedKeywordFilter, 'i')
 		}
 
 		if (params.titleFilter) {
 			let reducedTitleFilter = params.titleFilter.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-			mongoSearchObject.query['scheduledKeywords'] = {
-				"$elemMatch": {
-					"simplyfiedTitle": new RegExp(reducedTitleFilter,'i')
-				}
-			}
-			
+			mongoSearchObject.query.scheduledKeywords["$elemMatch"]["simplyfiedTitle"] = new RegExp(reducedTitleFilter, 'i')
 		}
 
 		//if date not specified, get for the current week
