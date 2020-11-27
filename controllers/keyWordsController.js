@@ -258,42 +258,50 @@ async function disqualifyKeywords(params) {
 		})
 
 		let documentToRemove = keywordDocuments.filter(document => document.competitor == competitor)[0]
-		if (!documentToRemove.main) {
-			await mongodbConnector.deleteOne({
-				collection: 'semrush-results',
-				query: { Keyword: keyword, competitor: competitor },
+		if(keywordDocuments.length != 0) {
+			if (!documentToRemove.main || keywordDocuments.length == 1) {
+				await mongodbConnector.deleteOne({
+					collection: 'semrush-results',
+					query: { Keyword: keyword, competitor: competitor },
+				})
+			} else {		
+				let oldMin = documentToRemove.competitorPosition
+				let onlyCompetitorsPosition = await keywordDocuments.map((document) => {
+					if (document.competitorPosition != oldMin) return document.competitorPosition
+					else return 999
+				})
+				let newMin = Math.min(...onlyCompetitorsPosition)
+				let documentToUpdate = keywordDocuments.filter(document => document.competitorPosition == newMin)[0]
+	
+				await mongodbConnector.deleteOne({
+					collection: 'semrush-results',
+					query: { _id: documentToRemove._id },
+				})
+				await mongodbConnector.updateOne({
+					collection: 'semrush-results',
+					filter: {
+						_id: documentToUpdate._id,
+					},
+					update: { $set: { main: true } }
+				})
+			}
+	
+			await mongodbConnector.save({
+				collection: 'disqualified-keywords',
+				document: { Keyword: keyword, competitor: competitor, createAt: currentDate },
 			})
-		} else {
-			let oldMin = documentToRemove.competitorPosition
-			let onlyCompetitorsPosition = await keywordDocuments.map((document) => {
-				if (document.competitorPosition != oldMin) return document.competitorPosition
-				else return 999
-			})
-			let newMin = Math.min(...onlyCompetitorsPosition)
-			let documentToUpdate = keywordDocuments.filter(document => document.competitorPosition == newMin)[0]
 
-			await mongodbConnector.deleteOne({
-				collection: 'semrush-results',
-				query: { _id: documentToRemove._id },
-			})
-			await mongodbConnector.updateOne({
-				collection: 'semrush-results',
-				filter: {
-					_id: documentToUpdate._id,
-				},
-				update: { $set: { main: true } }
-			})
+			return { keyword, competitor }
 		}
+		else {
+			throw new Error (`The keyword ${keyword} was already disqualified for competitor ${competitor}, please ensure to send valid parameters`)
+		}
+	
 
-		await mongodbConnector.save({
-			collection: 'disqualified-keywords',
-			document: { Keyword: keyword, competitor: competitor, createAt: currentDate },
-		})
-
-		return { keyword, competitor }
+		
 	} catch (error) {
 		console.log(error)
-		throw new Error(err)
+		throw(error.message)
 	}
 }
 
