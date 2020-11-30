@@ -9,7 +9,10 @@ async function getKeyWords(params) {
 		let mongoSearchObject = {
 			collection: 'semrush-results',
 			query: {
-				main: true
+				main: true,
+				active: {
+					"$ne":false
+				}
 			}
 		}
 
@@ -133,6 +136,7 @@ async function setWeeklySchedule(params) {
 		if (plans.list.length > 0) {
 			//update existing schedule
 			scheduleObject = plans.list[0]
+			await reactivateRemovedKeywords(scheduleObject.scheduledKeywords, params.selectedKeywords)
 			scheduleObject.scheduledKeywords = []
 		} else {
 			//create a new one
@@ -142,8 +146,9 @@ async function setWeeklySchedule(params) {
 				scheduledKeywords: [],
 			}
 		}
-
+		await deactivateScheduledKeywordsFromList(params.selectedKeywords)
 		params.selectedKeywords.map((keywordObject) => {
+			if(keywordObject.active!=undefined) delete keywordObject.active
 			keywordObject['title'] = keywordObject.title ? keywordObject.title : ''
 			keywordObject['simplyfiedTitle'] = keywordObject.title.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
 			keywordObject['tag'] = keywordObject.tag ? keywordObject.tag : ''
@@ -355,6 +360,60 @@ function setupMongoFilters(requestParameters, collectionName) {
 		})
 	}
 	return mongoSearchObject
+}
+
+
+async function reactivateRemovedKeywords(existingList, updatedKeywords) {
+	try {
+		let itemsToRestore = updatedKeywords.map((keywordObject) => {
+			let objectFound = existingList.filter((scheduleObject) => {
+				return scheduleObject.Keyword == keywordObject.Keyword
+			})
+			if (objectFound.length == 0) return keywordObject.Keyword
+		})
+		await mongodbConnector.updateMany({
+			collection: "semrush-results",
+			filter: {
+				"Keyword":{
+					"$in":itemsToRestore
+				}
+			},
+			update:{
+				"$set":{
+					"active":true
+				}
+			}
+		})
+		return
+	} catch (error) {
+		throw new Error("Unable to restore removed keywords\nERROR:\n" + JSON.stringify(error))
+	}
+
+}
+
+async function deactivateScheduledKeywordsFromList(insertedKeywords) {
+	try {
+		let itemsToRemove = insertedKeywords.map((keywordObject) => {
+			return keywordObject.Keyword
+		})
+		await mongodbConnector.updateMany({
+			collection: "semrush-results",
+			filter: {
+				"Keyword":{
+					"$in":itemsToRemove
+				}
+			},
+			update:{
+				"$set":{
+					"active":false
+				}
+			}
+		})
+		return
+	} catch (error) {
+		throw new Error("Unable to restore removed keywords\nERROR:\n" + JSON.stringify(error))
+	}
+
 }
 
 

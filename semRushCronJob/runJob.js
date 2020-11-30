@@ -49,12 +49,12 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 		if (allCompetitorsByGroup.length > 0) {
 
 			/* only for tests */
-			// let mockFile
-			// if(groupCategory==1) mockFile = mockConfigJson1
-			// else if (groupCategory==2) mockFile = mockConfigJson2
-			// else mockFile = mockConfigJson3
-			// let rawDomainsComparison = mockFile.rawDomainsComparison
-			// let organicResultsByKeyword = mockFile.organicResultsByKeyword
+			let mockFile
+			if(groupCategory==1) mockFile = mockConfigJson1
+			else if (groupCategory==2) mockFile = mockConfigJson2
+			else mockFile = mockConfigJson3
+			let rawDomainsComparison = mockFile.rawDomainsComparison
+			let organicResultsByKeyword = mockFile.organicResultsByKeyword
 
 			let allCompetitorsDetails = allCompetitorsByGroup[0]
 			let allCompetitors = Object.values(allCompetitorsByGroup[0]).map((groupCategory) => {

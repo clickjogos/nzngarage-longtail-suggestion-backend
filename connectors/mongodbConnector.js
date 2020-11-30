@@ -221,6 +221,32 @@ exports.updateOne = async (payload, upsert = true) =>{
     }
 }
 
+exports.updateMany = async (payload, upsert = true) =>{
+    try {
+		if(upsert){
+			var options = {         
+				new:true,
+				upsert: true
+			}
+		}else{
+			var options = {         
+				new:true
+			}
+		}
+
+		let {
+            collection,
+            filter,
+            update            
+        } = payload
+        let instance = await mongodb
+        let target = instance.collection(collection)
+        return target.updateMany(filter, update, options)
+    } catch (error) {
+        throw (error)
+    }
+}
+
 exports.upsertMany = async (payload) => {
     try {
         let {
