@@ -258,7 +258,7 @@ async function disqualifyKeywords(params) {
 		})
 
 		let documentToRemove = keywordDocuments.filter(document => document.competitor == competitor)[0]
-		if(keywordDocuments.length != 0) {
+		if(keywordDocuments.length != 0 && documentToRemove) {
 			if (!documentToRemove.main || keywordDocuments.length == 1) {
 				await mongodbConnector.deleteOne({
 					collection: 'semrush-results',
