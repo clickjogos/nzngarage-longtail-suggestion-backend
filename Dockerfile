@@ -1,4 +1,4 @@
-FROM node:14-alpine
+FROM node:14
 # Create app directory
 WORKDIR /usr/src/app
 # Install app dependencies
@@ -17,7 +17,6 @@ ENV VPN_USERNAME $VPN_USERNAME
 ENV VPN_PASSWORD $VPN_PASSWORD
 
 # VPN
-RUN apk add --update apt-get
 RUN apt-get update
 RUN apt-get install -y sudo
 
