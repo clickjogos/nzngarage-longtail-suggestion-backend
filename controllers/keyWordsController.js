@@ -11,7 +11,7 @@ async function getKeyWords(params) {
 			query: {
 				main: true,
 				active: {
-					"$ne":false
+					"$ne": false
 				}
 			}
 		}
@@ -96,9 +96,9 @@ async function getKeyWords(params) {
 		var keyWords = {
 			keyWordsArray: [],
 			currentPage: competitors.page.current,
-			totalPages: Math.ceil(competitors.page.total/competitors.page.size),
+			totalPages: Math.ceil(competitors.page.total / competitors.page.size),
 			totalRows: competitors.page.total
-			
+
 		}
 		if (competitors) {
 			keywordsGroupped.map(keyword => {
@@ -152,7 +152,7 @@ async function setWeeklySchedule(params) {
 		}
 		await deactivateScheduledKeywordsFromList(params.selectedKeywords)
 		params.selectedKeywords.map((keywordObject) => {
-			if(keywordObject.active!=undefined) delete keywordObject.active
+			if (keywordObject.active != undefined) delete keywordObject.active
 			keywordObject['title'] = keywordObject.title ? keywordObject.title : ''
 			keywordObject['simplyfiedTitle'] = keywordObject.title.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
 			keywordObject['tag'] = keywordObject.tag ? keywordObject.tag : ''
@@ -235,14 +235,48 @@ async function retrieveWeeklySchedule(params) {
 		let plans = await mongodbConnector.list(mongoSearchObject)
 
 		let result = {
-			schedule: plans.list,
+			schedule: updateKeywordsWithFilterSignal(plans.list, params),
 		}
+
+
 
 		return result
 	} catch (error) {
 		console.log(error)
 		throw new Error(err)
 	}
+}
+
+function updateKeywordsWithFilterSignal(scheduleList, params) {
+	let keyWordRegex = null
+	let titleRegex = null
+	if (params.keywordFilter) {
+		let reducedKeywordFilter = params.keywordFilter.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+		keyWordRegex = new RegExp(reducedKeywordFilter, 'i')
+	}
+
+	if (params.titleFilter) {
+		let reducedTitleFilter = params.titleFilter.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+		titleRegex = new RegExp(reducedTitleFilter, 'i')
+	}
+
+	let updatedScheduleList = scheduleList.map(schedule => {
+		schedule.scheduledKeywords = schedule.scheduledKeywords.map((keywordObject) => {
+			if (keyWordRegex) {
+				if (keywordObject.simplyfiedKeyword.match(keyWordRegex)) {
+					keywordObject['filter'] = true;
+				}
+			}
+			if (titleRegex) {
+				if (keywordObject.simplyfiedTitle.match(titleRegex)) {
+					keywordObject['filter'] = true;
+				}
+			}
+			return keywordObject
+		})
+		return schedule
+	})
+	return updatedScheduleList
 }
 
 // disqualifyKeywords - classify a given KW and its competitor as disqualified
@@ -263,13 +297,13 @@ async function disqualifyKeywords(params) {
 		})
 
 		let documentToRemove = keywordDocuments.filter(document => document.competitor == competitor)[0]
-		if(keywordDocuments.length != 0 && documentToRemove) {
+		if (keywordDocuments.length != 0 && documentToRemove) {
 			if (!documentToRemove.main || keywordDocuments.length == 1) {
 				await mongodbConnector.deleteOne({
 					collection: 'semrush-results',
 					query: { Keyword: keyword, competitor: competitor },
 				})
-			} else {		
+			} else {
 				let oldMin = documentToRemove.competitorPosition
 				let onlyCompetitorsPosition = await keywordDocuments.map((document) => {
 					if (document.competitorPosition != oldMin) return document.competitorPosition
@@ -277,7 +311,7 @@ async function disqualifyKeywords(params) {
 				})
 				let newMin = Math.min(...onlyCompetitorsPosition)
 				let documentToUpdate = keywordDocuments.filter(document => document.competitorPosition == newMin)[0]
-	
+
 				await mongodbConnector.deleteOne({
 					collection: 'semrush-results',
 					query: { _id: documentToRemove._id },
@@ -290,7 +324,7 @@ async function disqualifyKeywords(params) {
 					update: { $set: { main: true } }
 				})
 			}
-	
+
 			await mongodbConnector.save({
 				collection: 'disqualified-keywords',
 				document: { Keyword: keyword, competitor: competitor, createAt: currentDate },
@@ -299,14 +333,14 @@ async function disqualifyKeywords(params) {
 			return { keyword, competitor }
 		}
 		else {
-			throw new Error (`The keyword ${keyword} was already disqualified for competitor ${competitor}, please ensure to send valid parameters`)
+			throw new Error(`The keyword ${keyword} was already disqualified for competitor ${competitor}, please ensure to send valid parameters`)
 		}
-	
 
-		
+
+
 	} catch (error) {
 		console.log(error)
-		throw(error.message)
+		throw (error.message)
 	}
 }
 
@@ -377,22 +411,28 @@ function setupMongoFilters(requestParameters, collectionName) {
 
 async function reactivateRemovedKeywords(existingList, updatedKeywords) {
 	try {
-		let itemsToRestore = updatedKeywords.map((keywordObject) => {
-			let objectFound = existingList.filter((scheduleObject) => {
+		let restorationNeeded = false;
+		let itemsToRestore = existingList.map((keywordObject) => {
+			let objectFound = updatedKeywords.filter((scheduleObject) => {
 				return scheduleObject.Keyword == keywordObject.Keyword
 			})
-			if (objectFound.length == 0) return keywordObject.Keyword
+			if (objectFound.length == 0) {
+				restorationNeeded = true;
+				return {
+					"Keyword": keywordObject.Keyword,
+					"competitor": keywordObject.competitor
+				}
+			}
 		})
-		await mongodbConnector.updateMany({
+
+		if(restorationNeeded) await mongodbConnector.updateMany({
 			collection: "semrush-results",
 			filter: {
-				"Keyword":{
-					"$in":itemsToRestore
-				}
+				"$or": itemsToRestore
 			},
-			update:{
-				"$set":{
-					"active":true
+			update: {
+				"$set": {
+					"active": true
 				}
 			}
 		})
@@ -403,21 +443,26 @@ async function reactivateRemovedKeywords(existingList, updatedKeywords) {
 
 }
 
+
 async function deactivateScheduledKeywordsFromList(insertedKeywords) {
 	try {
+		let filterObject = {
+			"$or": []
+		}
 		let itemsToRemove = insertedKeywords.map((keywordObject) => {
-			return keywordObject.Keyword
+			return {
+				"Keyword": keywordObject.Keyword,
+				"competitor": keywordObject.competitor
+			}
 		})
+
+		filterObject["$or"] = itemsToRemove
 		await mongodbConnector.updateMany({
 			collection: "semrush-results",
-			filter: {
-				"Keyword":{
-					"$in":itemsToRemove
-				}
-			},
-			update:{
-				"$set":{
-					"active":false
+			filter: filterObject,
+			update: {
+				"$set": {
+					"active": false
 				}
 			}
 		})
