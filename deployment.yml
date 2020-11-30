@@ -38,4 +38,24 @@ spec:
               secretKeyRef:
                 name: semrush-secret
                 key: semrushApiKey
+          - name: MSSQL_HOST
+            valueFrom:
+              secretKeyRef:
+                name: mssql-secret
+                key: mssqlHost
+          - name: MSSQL_DB
+            valueFrom:
+              secretKeyRef:
+                name: mssql-secret
+                key: mssqlDb
+          - name: MSSQL_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mssql-secret
+                key: mssqlUsername
+          - name: MSSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mssql-secret
+                key: mssqlPassword
        imagePullPolicy: Always

@@ -12,6 +12,7 @@ let appEnv = cfenv.getAppEnv()
 const rootRoutes = require('./routes/rootRoutes')
 const competitorsRoutes = require('./routes/competitorsRoutes')
 const keyWordsRoutes = require ('./routes/keyWordsRoutes')
+const audienceRoutes = require ('./routes/audienceRoutes')
 
 //Data parsers for the request body
 app.use(express.json())
@@ -28,6 +29,7 @@ app.use((error, req, res, next) => {
 app.use('/backend2', rootRoutes)
 app.use('/backend2/competitors', competitorsRoutes)
 app.use('/backend2/keyWords', keyWordsRoutes) 
+app.use('/backend2/audience', audienceRoutes) 
 
 //Starts the application server 
 const port = process.env.port || 6005;
