@@ -17,6 +17,7 @@ ENV VPN_USERNAME $VPN_USERNAME
 ENV VPN_PASSWORD $VPN_PASSWORD
 
 # VPN
+RUN apk add --update apt-get
 RUN apt-get update
 RUN apt-get install -y sudo
 
