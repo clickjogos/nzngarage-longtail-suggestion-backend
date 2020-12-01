@@ -3,7 +3,7 @@ const audienceController = require('../controllers/audienceController')
 
 router.get('/',async function(req, res) {
     try{
-        var result = await audienceController.execute()
+        var result = await audienceController.execute(req.query)
         res.status(200).send(result)
     }
     catch(err){
