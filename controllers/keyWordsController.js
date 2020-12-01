@@ -78,6 +78,7 @@ async function getKeyWords(params) {
 					"Number of Results": group[0]["Number of Results"],
 					"nznPosition": group[0]["nznPosition"],
 					"Search Volume": group[0]["Search Volume"],
+					"ctr": group[0]["ctr"],
 					competitors: group
 				}
 					;
