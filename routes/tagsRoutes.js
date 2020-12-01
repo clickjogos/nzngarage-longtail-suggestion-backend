@@ -3,7 +3,7 @@ const tagsController = require('../controllers/tagsController')
 
 router.get('/',async function(req, res) {
     try{
-        var result = await tagsController.getTagsList()
+        var result = await tagsController.getTagsList(req.query)
         res.status(200).send(result)
     }
     catch(err){
