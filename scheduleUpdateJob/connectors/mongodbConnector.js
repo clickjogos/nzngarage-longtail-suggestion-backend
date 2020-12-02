@@ -234,7 +234,7 @@ exports.upsertMany = async (payload) => {
     }
 }
 
-exports.updateMany = async (payload) => {
+exports.updateManyById = async (payload) => {
     try {
         let {
             collection,

@@ -264,6 +264,24 @@ exports.updateMany = async (payload, upsert = true) =>{
     }
 }
 
+exports.updateManyById = async (payload) => {
+    try {
+        let {
+            collection,
+            documents
+        } = payload
+        let instance = await mongodb
+        let target = instance.collection(collection)
+        var bulk = target.initializeOrderedBulkOp()
+        documents.forEach(function (item) {
+            bulk.find( { _id: item._id } ).replaceOne(item);
+        })
+        await bulk.execute()
+    } catch (error) {
+        throw new Error(error.message)
+    }
+}
+
 exports.upsertMany = async (payload) => {
     try {
         let {
