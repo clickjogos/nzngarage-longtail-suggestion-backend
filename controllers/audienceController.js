@@ -41,11 +41,11 @@ async function defineDateFilters(params) {
 			dateObject.stringFormat['startDate'] = params.startDate
       dateObject.stringFormat['endDate'] = params.endDate
 
-      let paramsDate = new Date(params.startDate)
-      dateObject.dateFormat['startDate'] = paramsDate
-      let weekdayNumber = paramsDate.getDay()
-      dateObject.dateFormat.startDate.setDate(paramsDate.getDate() - weekdayNumber)
-      dateObject.dateFormat.startDate.setHours(0, 0, 0, 0)
+      // let paramsDate = new Date(params.startDate)
+      // dateObject.dateFormat['startDate'] = paramsDate
+      // let weekdayNumber = paramsDate.getDay()
+      // dateObject.dateFormat.startDate.setDate(paramsDate.getDate() - weekdayNumber)
+      // dateObject.dateFormat.startDate.setHours(0, 0, 0, 0)
 
 			dateObject.dateFormat['endDate'] = new Date(params.endDate)
 		} else {
@@ -74,7 +74,11 @@ async function recoverArticlesIds(dateObject) {
 				$lte: dateObject.endDate,
 			},
 			scheduledKeywords: { $exists: true },
-		}
+    }
+    
+    // let filterDateQuery = { 
+    //   scheduledKeywords: { $elemMatch: { 'nznPosition': 11  }}
+    // }
 
 		let schedulePlans = await find({
 			collection: 'week-plans',
@@ -147,15 +151,25 @@ async function grouprawAudienceValuesByIdAndMonth(articlesArray) {
 		let articlesGroupped = _(articlesArray)
 			.groupBy('views_artigo')
 			.map(function (group, key) {
-				let response = { articleId: group[0].views_artigo, monthsAudience: [] }
+        let response = { articleId: group[0].views_artigo, monthsAudience: [] }
+        
+        let currentDate = new Date()
+        let last30Days = group.filter( item=> {
+          let itemDate = new Date(item.views_data)
+          let startDate = new Date()
+          startDate.setDate(currentDate.getDate() - 15)
+          if( itemDate > startDate) return item
+        })
+
 				let months = []
 				group.map((row) => {
 					let date = new Date(row.views_data)
-					let month = date.getMonth() + 1
+          let month = date.getMonth() + 1
 					months.push({ month: month, views_total: row.views_total })
 				})
-				response['monthsAudience'].push(months)
+        response['monthsAudience'].push(months)
 				response['totalAudience'] = _.sumBy(group, 'views_total')
+        response['last30DaysAudience'] = _.sumBy(last30Days, 'views_total')
 				return response
 			})
 			.value()
@@ -164,14 +178,16 @@ async function grouprawAudienceValuesByIdAndMonth(articlesArray) {
 			let newMonthValues = _(articleGroup.monthsAudience[0])
 				.groupBy('month')
 				.map(function (group, key) {
+          let totalAudience = _.sumBy(group, 'views_total')
 					return {
 						month: group[0].month,
-						totalMonthAudience: _.sumBy(group, 'views_total'),
+            totalMonthAudience: totalAudience
 					}
 				})
 				.value()
 
-			articlesGroupped[articleGroupIndex].monthsAudience = newMonthValues
+      articlesGroupped[articleGroupIndex].monthsAudience = newMonthValues
+      articlesGroupped[articleGroupIndex]['meanAudience'] = articleGroup.totalAudience / articleGroup.monthsAudience.length
 			return articlesGroupped
 		})
 
