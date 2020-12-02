@@ -209,6 +209,10 @@ async function retrieveWeeklySchedule(params) {
 			mongoSearchObject.query['weekStartDate'] = setDateIntervalFilter(params.startDate, params.endDate)
 		}
 
+		if (params.tag) {
+			mongoSearchObject.query['tag'] = params.tag
+		}
+
 		if (params.keywordFilter || params.titleFilter) {
 			mongoSearchObject.query['scheduledKeywords'] = {
 				"$elemMatch": {
