@@ -337,6 +337,9 @@ async function disqualifyKeywords(params) {
 
 			return { keyword, competitor }
 		}
+		else if (keywordDocuments.length != 0 && !documentToRemove) {
+			throw new Error(`Competitor ${competitor} is invalid, please ensure to send valid parameters`)
+		}
 		else {
 			throw new Error(`The keyword ${keyword} was already disqualified for competitor ${competitor}, please ensure to send valid parameters`)
 		}
