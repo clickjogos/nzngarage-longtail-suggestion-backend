@@ -7,7 +7,7 @@ router.get('/',async function(req, res) {
         res.status(200).send(result)
     }
     catch(err){
-        res.status(500).send('Internal Server Error');
+        res.status(500).send(err);
     }
 });
 module.exports = router;

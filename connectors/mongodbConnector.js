@@ -172,6 +172,23 @@ exports.findAll = async (payload) => {
         throw new Error(error.message)
     }
 }
+
+exports.aggregate = async (payload) => {
+    try {
+        let {
+            collection,
+            pipelinesStages,
+            fieldsToShow
+        } = payload
+        let instance = await mongodb
+        let target = instance.collection(collection)
+        return target.aggregate(pipelinesStages)
+        .project(fieldsToShow)
+        .toArray()
+    } catch (error) {
+        throw new Error(error.message)
+    }
+}
 /**
  * Updates a document
  * http://mongodb.github.io/node-mongodb-native/3.1/api/Collection.html#updateOne
