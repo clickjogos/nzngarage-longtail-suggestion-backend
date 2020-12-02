@@ -1,0 +1,9 @@
+### Credentials ###
+.env
+
+### Dependencies ###
+node_modules
+
+
+### Dev files ####
+mockConfig.json
