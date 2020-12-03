@@ -201,18 +201,18 @@ async function setWeeklySchedule(params) {
 async function updateWeeklySchedule(params) {
 	try {
 		let schedulesToUpdate = params.schedule
-		schedulesToUpdate = schedulesToUpdate.map((schedule)=>{
-			schedule._id= new ObjectID(schedule._id)
+		schedulesToUpdate = schedulesToUpdate.map((schedule) => {
+			schedule._id = new ObjectID(schedule._id)
 			schedule.weekStartDate = new Date(schedule.weekStartDate),
-			schedule.lastUpdate = new Date(schedule.lastUpdate)
+				schedule.lastUpdate = new Date(schedule.lastUpdate)
 			return schedule
 		})
 		let dbResult = await mongodbConnector.updateManyById({
-			collection:"week-plans",
-			documents:schedulesToUpdate
+			collection: "week-plans",
+			documents: schedulesToUpdate
 		})
 		return dbResult
-		
+
 	} catch (error) {
 		console.log(error)
 		throw new Error(err)
@@ -232,6 +232,15 @@ async function retrieveWeeklySchedule(params) {
 		//if the user specify intervals, retrieve every object in that date interval
 		if (params.startDate && params.endDate) {
 			mongoSearchObject.query['weekStartDate'] = setDateIntervalFilter(params.startDate, params.endDate)
+		}
+
+
+		//if date not specified, get for the current week
+		else {
+			let weekStartDate = getCurrentWeekStartDate();
+			mongoSearchObject.query['weekStartDate'] = {
+				$gte: weekStartDate,
+			}
 		}
 
 		if (params.tag) {
@@ -255,13 +264,6 @@ async function retrieveWeeklySchedule(params) {
 			mongoSearchObject.query.scheduledKeywords["$elemMatch"]["simplyfiedTitle"] = new RegExp(reducedTitleFilter, 'i')
 		}
 
-		//if date not specified, get for the current week
-		else {
-			let weekStartDate = getCurrentWeekStartDate();
-			mongoSearchObject.query['weekStartDate'] = {
-				$gte: weekStartDate,
-			}
-		}
 		let plans = await mongodbConnector.list(mongoSearchObject)
 
 		let result = {
@@ -458,7 +460,7 @@ async function reactivateRemovedKeywords(existingList, updatedKeywords) {
 			}
 		})
 
-		if(restorationNeeded) await mongodbConnector.updateMany({
+		if (restorationNeeded) await mongodbConnector.updateMany({
 			collection: "semrush-results",
 			filter: {
 				"$or": itemsToRestore
