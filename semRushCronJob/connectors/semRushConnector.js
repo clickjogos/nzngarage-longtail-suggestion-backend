@@ -17,6 +17,7 @@ let options = {
 	},
 }
 
+// domainVsDomains: Call domainVsDomains SEMrush route 
 exports.domainVsDomains = async (payload) => {
 	try {
 		options.params['type'] = 'domain_domains'
@@ -49,7 +50,7 @@ exports.domainVsDomains = async (payload) => {
 async function queueDomainVsDomain(loop, displayLimitArray, displayOffset, options, semRushResponseArray) {
 	try {
 		if (loop > 0) {
-            //comeco
+            // start
             let displayLimit = displayLimitArray[0]
             options.params['display_limit'] = displayLimit
             options.params['display_offset'] = displayOffset
@@ -58,7 +59,7 @@ async function queueDomainVsDomain(loop, displayLimitArray, displayOffset, optio
             let semRushResponse = await axios(options)
 
             semRushResponseArray.push(semRushResponse.data)
-            //fim
+            // end
             displayOffset = displayLimit
             displayLimitArray.splice(0,1)
             loop--
@@ -71,6 +72,7 @@ async function queueDomainVsDomain(loop, displayLimitArray, displayOffset, optio
 	}
 }
 
+// organicResults: Call organicResults SEMrush route 
 exports.organicResults = async (payload) => {
 	try {
 		delete options.params.display_filter
@@ -82,9 +84,9 @@ exports.organicResults = async (payload) => {
 		options.params['display_limit'] = payload.displayLimit
 		options.params['export_columns'] = payload.exportColumns
 
-		console.log(`call for ${payload.phrase}`)
+		console.log(`starting organic search for ${payload.phrase}`)
 		let semRushResponse = await axios(options)
-		console.log(`results for ${payload.phrase}`)
+		console.log(`ending organic search for ${payload.phrase}`)
 		return semRushResponse.data
 	} catch (error) {
 		throw new Error(error.message)
