@@ -1,16 +1,17 @@
 require('dotenv').config()
 
 const csvtojson = require('csvtojson')
-const { all } = require('underscore')
 
 // FUTURE: remove comments to use SEMrush API call
 // const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
 
 const { save, saveMultiple, updateOne, find, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
-const semRushCollection = 'semrush-results'
+// const semRushCollection = 'semrush-results'
+const semRushCollection = 'teste-api'
 
 const limitCompetitorPosition = 4
+const semRushLimitRows = 20
 
 /* only for tests */
 let mockConfigJson1 = require('./mockFiles/mockConfig-group1.json')
@@ -20,7 +21,7 @@ let mockConfigJson3 = require('./mockFiles/mockConfig-group3.json')
 function searchKeywordsList() {
 	return new Promise(async (resolve, reject) => {
 		try {
-			console.log('>>> Iniciando Job')
+			console.log('>>> Starting Job')
 
 			await clearCollection()
 
@@ -49,12 +50,12 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 		if (allCompetitorsByGroup.length > 0) {
 
 			/* only for tests */
-			let mockFile
-			if(groupCategory==1) mockFile = mockConfigJson1
-			else if (groupCategory==2) mockFile = mockConfigJson2
-			else mockFile = mockConfigJson3
-			let rawDomainsComparison = mockFile.rawDomainsComparison
-			let organicResultsByKeyword = mockFile.organicResultsByKeyword
+			// let mockFile
+			// if(groupCategory==1) mockFile = mockConfigJson1
+			// else if (groupCategory==2) mockFile = mockConfigJson2
+			// else mockFile = mockConfigJson3
+			// let rawDomainsComparison = mockFile.rawDomainsComparison
+			// let organicResultsByKeyword = mockFile.organicResultsByKeyword
 
 			let allCompetitorsDetails = allCompetitorsByGroup[0]
 			let allCompetitors = Object.values(allCompetitorsByGroup[0]).map((groupCategory) => {
@@ -63,7 +64,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 				})
 			})
 
-			console.log('>>> Executando etapa para: ', allCompetitors[0])
+			console.log('>>> Starting step for: ', allCompetitors[0])
 			const mainDomain = ['tecmundo.com.br']
 			const allDomains = [...mainDomain, ...allCompetitors[0]]
 			const numberOfDomains = allDomains.length
@@ -87,7 +88,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			// FUTURE: remove comments to use SEMrush API call
 			/* get SEMrush domainVsDomains results */
 			// let rawDomainsComparison = await domainVsDomains({
-			// 	limitRows: 20,
+			// 	limitRows: semRushLimitRows,
 			// 	type: 'domain_domains',
 			// 	database: 'br',
 			// 	domains: queryDomains,
@@ -336,12 +337,14 @@ async function removeKeywordsCompetitorsToDisconsider( onlyKeywordsOfInterest, a
 			let newCompetitors = row.competitors.map( (details, indexDetails) => {
 				let competitor = details.competitor				
 				let kwExists = keywordsToDisconsider.filter( kw => {
-					if(kw.Keyword == keyword && kw.competitor==competitor) return true
+					if(kw.Keyword == keyword && kw.competitor==competitor) {
+						console.log(`Disconsidering KW-competitor pair: ${keyword} - ${competitor} `)
+						return true
+					}
 					else return false
 				})
 				if(kwExists.length == 0 ) newCompetitors2.push(details)
 				return newCompetitors2
-				console.log()
 			})
 			
 			if(newCompetitors2.length != 0) {
@@ -349,7 +352,6 @@ async function removeKeywordsCompetitorsToDisconsider( onlyKeywordsOfInterest, a
 				choosenKeywords.push(row)
 			}
 			return onlyKeywordsOfInterest
-			console.log()
 		})
 
 		return choosenKeywords
@@ -361,7 +363,6 @@ async function removeKeywordsCompetitorsToDisconsider( onlyKeywordsOfInterest, a
 async function removeMainDomain(splittedKeywordsByDomain, allDomains, mainDomain) {
 	try {
 		splittedKeywordsByDomain = await splittedKeywordsByDomain.reduce((accumulator, row) => {
-			// let min = 
 			let onlyDomainsPosition =[]
 			onlyDomainsPosition.push(row.nznPosition)
 			row.competitors.map( competitor =>{
@@ -394,7 +395,6 @@ async function queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicR
 				exportColumns: 'Dn,Ur,Fk',
 			})
 			let keyword = keywordsUngroupped[0].Keyword
-			// let position = keywordsUngroupped[0].competitorPosition
 			keywordsOrganicResults.push({ keyword: keyword, results: x })
 			keywordsUngroupped.splice(0, 1)
 			return await queueOrganicResultsByKeyword(keywordsUngroupped, keywordsOrganicResults)
@@ -551,8 +551,8 @@ async function saveOrganicResults(organicResults) {
 				collection: semRushCollection,
 				documents: documentsToSave,
 			})
-			console.log('>>> Finalizando etapa')
-			console.log('>>> Resultados')
+			console.log('>>> Ending step')
+			console.log('>>> Results')
 			console.log(organicResults)
 			return saveResult
 		} else return
