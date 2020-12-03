@@ -203,6 +203,8 @@ async function updateWeeklySchedule(params) {
 		let schedulesToUpdate = params.schedule
 		schedulesToUpdate = schedulesToUpdate.map((schedule)=>{
 			schedule._id= new ObjectID(schedule._id)
+			schedule.weekStartDate = new Date(schedule.weekStartDate),
+			schedule.lastUpdate = new Date(schedule.lastUpdate)
 			return schedule
 		})
 		let dbResult = await mongodbConnector.updateManyById({
