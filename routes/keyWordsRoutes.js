@@ -21,6 +21,16 @@ router.post('/weeklyschedule',async function(req, res) {
     }
 });
 
+router.put('/weeklyschedule',async function(req, res) {
+    try{
+        var result = await keyWordsController.updateWeeklySchedule(req.body);
+        res.status(200).send(result)
+    }
+    catch(err){
+        res.status(500).send('Internal Server Error');
+    }
+});
+
 router.get('/weeklyschedule',async function(req, res) {
     try{
         var result = await keyWordsController.retrieveWeeklySchedule(req.query);

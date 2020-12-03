@@ -118,7 +118,7 @@ async function getKeyWords(params) {
 	}
 }
 
-// setWeeklySchedule - creates or updates a weekly keyword schedule in the database
+// setWeeklySchedule - creates a weekly keyword schedule in the database
 async function setWeeklySchedule(params) {
 	try {
 		//determine current week start date and check if there are existing scheudles
@@ -195,6 +195,24 @@ async function setWeeklySchedule(params) {
 		throw new Error(err)
 	}
 }
+
+// updateWeeklySchedule - updates a weekly keyword schedule in the database
+async function updateWeeklySchedule(params) {
+	try {
+		let schedulesToUpdate = params.schedule
+		let dbResult = await mongodbConnector.updateManyById({
+			collection:"week-plans",
+			documents:schedulesToUpdate
+		})
+		return dbResult
+		
+	} catch (error) {
+		console.log(error)
+		throw new Error(err)
+	}
+}
+
+
 
 // retrieveWeeklySchedule - retrieves a weekly keyword schedule in the database
 // the date parameters must be in the format "YYYY-MM-DD"
@@ -488,4 +506,5 @@ module.exports = {
 	setWeeklySchedule,
 	retrieveWeeklySchedule,
 	disqualifyKeywords,
+	updateWeeklySchedule
 }
