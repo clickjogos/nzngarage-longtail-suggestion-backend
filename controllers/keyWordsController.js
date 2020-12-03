@@ -2,6 +2,7 @@ const mongodbConnector = require('../connectors/mongodbConnector.js')
 const _ = require('lodash')
 const { options } = require('../routes/keyWordsRoutes.js')
 const { searchKeywordsListByCompetitor } = require('./semRushController')
+const { ObjectID } = require('mongodb')
 
 //getKeyWords - retrieves the key words list from database based on the filtering parameters
 async function getKeyWords(params) {
@@ -200,6 +201,10 @@ async function setWeeklySchedule(params) {
 async function updateWeeklySchedule(params) {
 	try {
 		let schedulesToUpdate = params.schedule
+		schedulesToUpdate = schedulesToUpdate.map((schedule)=>{
+			schedule._id= new ObjectID(schedule._id)
+			return schedule
+		})
 		let dbResult = await mongodbConnector.updateManyById({
 			collection:"week-plans",
 			documents:schedulesToUpdate

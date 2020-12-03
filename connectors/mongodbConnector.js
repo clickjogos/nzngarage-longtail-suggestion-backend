@@ -276,7 +276,7 @@ exports.updateManyById = async (payload) => {
         documents.forEach(function (item) {
             bulk.find( { _id: item._id } ).replaceOne(item);
         })
-        await bulk.execute()
+        return await bulk.execute()
     } catch (error) {
         throw new Error(error.message)
     }
