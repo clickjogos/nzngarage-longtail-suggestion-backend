@@ -1,27 +1,28 @@
-require('dotenv').config()
-
 const csvtojson = require('csvtojson')
 
-// FUTURE: remove comments to use SEMrush API call
-// const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
+const { domainVsDomains, organicResults } = require('./connectors/semRushConnector')
 
-const { save, saveMultiple, updateOne, find, findAll, deleteMany } = require('./connectors/mongodbConnector')
+const { saveMultiple, find, findAll, deleteMany } = require('./connectors/mongodbConnector')
 
 // const semRushCollection = 'semrush-results'
 const semRushCollection = 'teste-api'
 
 const limitCompetitorPosition = 4
-const semRushLimitRows = 20
+const semRushLimitRows = 2
 
 /* only for tests */
 let mockConfigJson1 = require('./mockFiles/mockConfig-group1.json')
 let mockConfigJson2 = require('./mockFiles/mockConfig-group2.json')
 let mockConfigJson3 = require('./mockFiles/mockConfig-group3.json')
 
-function searchKeywordsList() {
+function searchKeywordsList(params) {
 	return new Promise(async (resolve, reject) => {
 		try {
 			console.log('>>> Starting Job')
+
+			let isTest
+			if(params && params.test) isTest = true
+			else {isTest = false}
 
 			await clearCollection()
 
@@ -36,7 +37,7 @@ function searchKeywordsList() {
 			/* Recursive function 
 			search all interests keyword, its competitors information and save
 			*/
-			let savedDocuments = await searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, [], keywordsToDisconsider, 1)
+			let savedDocuments = await searchKeywordsListByCompetitorGroup(isTest, allCompetitorsByGroup, [], keywordsToDisconsider, 1)
 
 			resolve(savedDocuments)
 		} catch (error) {
@@ -45,17 +46,19 @@ function searchKeywordsList() {
 	})
 }
 
-async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywordsGroupped, keywordsToDisconsider, groupCategory) {
+async function searchKeywordsListByCompetitorGroup(isTest, allCompetitorsByGroup, keywordsGroupped, keywordsToDisconsider, groupCategory) {
 	try {
 		if (allCompetitorsByGroup.length > 0) {
 
 			/* only for tests */
-			// let mockFile
-			// if(groupCategory==1) mockFile = mockConfigJson1
-			// else if (groupCategory==2) mockFile = mockConfigJson2
-			// else mockFile = mockConfigJson3
-			// let rawDomainsComparison = mockFile.rawDomainsComparison
-			// let organicResultsByKeyword = mockFile.organicResultsByKeyword
+			if(isTest) {
+				let mockFile
+				if(groupCategory==1) mockFile = mockConfigJson1
+				else if (groupCategory==2) mockFile = mockConfigJson2
+				else mockFile = mockConfigJson3
+				var rawDomainsComparison = mockFile.rawDomainsComparison
+				var organicResultsByKeyword = mockFile.organicResultsByKeyword
+			}
 
 			let allCompetitorsDetails = allCompetitorsByGroup[0]
 			let allCompetitors = Object.values(allCompetitorsByGroup[0]).map((groupCategory) => {
@@ -85,16 +88,17 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 				}
 			})
 
-			// FUTURE: remove comments to use SEMrush API call
 			/* get SEMrush domainVsDomains results */
-			// let rawDomainsComparison = await domainVsDomains({
-			// 	limitRows: semRushLimitRows,
-			// 	type: 'domain_domains',
-			// 	database: 'br',
-			// 	domains: queryDomains,
-			// 	exportColumns: exportColumns,
-			// 	displayFilter: displayFilter,
-			// })
+			if(!isTest) {
+				var rawDomainsComparison = await domainVsDomains({
+					limitRows: semRushLimitRows,
+					type: 'domain_domains',
+					database: 'br',
+					domains: queryDomains,
+					exportColumns: exportColumns,
+					displayFilter: displayFilter,
+				})
+			}
 
 			/* Convert rawDomainsComparison to a JSON */
 			let colParser = {
@@ -124,11 +128,12 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			/* Remove keywords that has the main domain as better position or those keywords to be disconsider*/
 			let onlyKeywordsOfInterest = await removeKeywordsCompetitorsToDisconsider(splittedKeywordsByDomain, allDomains, keywordsToDisconsider)
 			onlyKeywordsOfInterest = await removeMainDomain(onlyKeywordsOfInterest, allDomains, mainDomain)					
-
-			// FUTURE: remove comments to use SEMrush API call
+			
 			/* get SEMrush organicResults results */
-			// let keywordsToOrganicSearch = Array.from(onlyKeywordsOfInterest)
-			// let organicResultsByKeyword = await queueOrganicResultsByKeyword(keywordsToOrganicSearch, [])
+			if( !isTest ) {
+				var keywordsToOrganicSearch = Array.from(onlyKeywordsOfInterest)
+				var organicResultsByKeyword = await queueOrganicResultsByKeyword(keywordsToOrganicSearch, [])
+			}
 
 			/* Convert organicResultsByKeyword to a JSON */
 			let convertedOrganicResultsByKeyword = organicResultsByKeyword.map(async (row) => {
@@ -150,7 +155,7 @@ async function searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywor
 			keywordsGroupped.push(savedDocuments)
 			allCompetitorsByGroup.splice(0, 1)
 			groupCategory = groupCategory+1
-			return await searchKeywordsListByCompetitorGroup(allCompetitorsByGroup, keywordsGroupped, keywordsToDisconsider, groupCategory)
+			return await searchKeywordsListByCompetitorGroup(isTest, allCompetitorsByGroup, keywordsGroupped, keywordsToDisconsider, groupCategory)
 		} else {
 			return keywordsGroupped
 		}

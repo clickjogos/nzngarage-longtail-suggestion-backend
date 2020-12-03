@@ -58,4 +58,9 @@ spec:
               secretKeyRef:
                 name: mssql-secret
                 key: mssqlPassword
+          - name: SEMRUSH_APIKEY
+            valueFrom:
+              secretKeyRef:
+                name: semrush-secret
+                key: semrushApiKey
        imagePullPolicy: Always
