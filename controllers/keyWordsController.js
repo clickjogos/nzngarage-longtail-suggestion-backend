@@ -239,7 +239,7 @@ async function retrieveWeeklySchedule(params) {
 		else {
 			let weekStartDate = getCurrentWeekStartDate();
 			mongoSearchObject.query['weekStartDate'] = {
-				$gte: weekStartDate,
+				$gt: weekStartDate,
 			}
 		}
 
@@ -383,7 +383,8 @@ function getCurrentWeekStartDate() {
 	let currentDate = new Date();
 	let currentWeekStartDate = new Date()
 	let weekdayNumber = currentDate.getDay()
-	currentWeekStartDate.setDate(currentDate.getDate() - weekdayNumber)
+	//remove an extra day for timezone differences
+	currentWeekStartDate.setDate(currentDate.getDate() - (weekdayNumber+1)) 
 	currentWeekStartDate.setHours(0, 0, 0, 0);
 	return currentWeekStartDate
 }
