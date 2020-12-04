@@ -26,7 +26,7 @@ async function execute(params) {
 		return tableAndChartInfo
 	} catch (error) {
 		console.error(error)
-		throw error
+		throw error.message
 	}
 }
 
@@ -82,7 +82,7 @@ async function recoverArticlesIds(dateObject) {
 			{
 				$match: {
 					'scheduledKeywords.publishDateFormat': {
-						$gte: dateObject.startDate,
+						$gt: dateObject.startDate,
 						$lte: dateObject.endDate,
 					},
 				},
