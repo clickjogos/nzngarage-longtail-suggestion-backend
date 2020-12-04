@@ -157,7 +157,7 @@ async function setWeeklySchedule(params) {
 			if (keywordObject.active != undefined) delete keywordObject.active
 			keywordObject['title'] = keywordObject.title ? keywordObject.title : ''
 			keywordObject['simplyfiedTitle'] = keywordObject.title.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-			keywordObject['tag'] = keywordObject.tag ? keywordObject.tag : ''
+			keywordObject['tag'] = keywordObject.tag ? keywordObject.tag : '-'
 			keywordObject['internalBacklinks'] = keywordObject.internalBacklinks ? keywordObject.internalBacklinks : []
 			scheduleObject.scheduledKeywords.push(keywordObject)
 		})
@@ -244,7 +244,11 @@ async function retrieveWeeklySchedule(params) {
 		}
 
 		if (params.tag) {
-			mongoSearchObject.query['tag'] = params.tag
+			mongoSearchObject.query['scheduledKeywords'] = {
+				"$elemMatch": {
+					tag: params.tag
+				}
+			}
 		}
 
 		if (params.keywordFilter || params.titleFilter) {
@@ -292,6 +296,8 @@ function updateKeywordsWithFilterSignal(scheduleList, params) {
 		titleRegex = new RegExp(reducedTitleFilter, 'i')
 	}
 
+	
+
 	let updatedScheduleList = scheduleList.map(schedule => {
 		schedule.scheduledKeywords = schedule.scheduledKeywords.map((keywordObject) => {
 			if (keyWordRegex) {
@@ -304,6 +310,12 @@ function updateKeywordsWithFilterSignal(scheduleList, params) {
 					keywordObject['filter'] = true;
 				}
 			}
+			if(params.tag){
+				if (keywordObject.tag.match(params.tag)) {
+					keywordObject['filter'] = true;
+				}
+			}
+
 			return keywordObject
 		})
 		return schedule
