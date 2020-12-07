@@ -309,7 +309,7 @@ async function retrieveWeeklySchedule(params) {
 		let result = {
 			schedule: schedules,
 		}
-		if (schedules.length != 0) {
+		if ((schedules.length != 0) && ( !params.keywordFilter && !params.titleFilter)) {
 			let ungruppedSchedules = []
 			schedules.map((schedule) => {
 				schedule.scheduledKeywords.map((kwInfo) => {
