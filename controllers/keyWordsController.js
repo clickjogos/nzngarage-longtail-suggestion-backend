@@ -5,7 +5,7 @@ const { setDateIntervalFilter, getCurrentWeekStartDate } = require('../utils/uti
 const { ObjectID, ObjectId } = require('mongodb')
 
 const collection_semRush = 'semrush-results'
-const collection_weekPlans = 'week-plans-test'
+const collection_weekPlans = 'week-plans'
 const collection_disqualifiedKeywords = 'disqualified-keywords'
 
 //getKeyWords - retrieves the key words list from database based on the filtering parameters
