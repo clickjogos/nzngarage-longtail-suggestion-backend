@@ -225,6 +225,7 @@ async function updateWeeklySchedule(params) {
 						scheduleToUpdate.scheduledKeywords.map(newKeywordObject => {
 							if ((newKeywordObject.Keyword == oldKeywordObject.Keyword) && (newKeywordObject.competitor == oldKeywordObject.competitor)) {
 								oldKeywordObject = newKeywordObject
+
 							}
 						})
 						return oldKeywordObject
@@ -235,12 +236,17 @@ async function updateWeeklySchedule(params) {
 			await deactivateScheduledKeywordsFromList(scheduleToUpdate.scheduledKeywords)
 		});
 
+
 		await Promise.all(mapResult)
 
 		schedulesToUpdate = schedulesToUpdate.map((schedule) => {
 			delete schedule._id
-			schedule.weekStartDate = new Date(schedule.weekStartDate),
-				schedule.lastUpdate = new Date(schedule.lastUpdate)
+			schedule.weekStartDate = new Date(schedule.weekStartDate)
+			schedule.lastUpdate = new Date(schedule.lastUpdate)
+			schedule.scheduledKeywords = schedule.scheduledKeywords.map((keywordObject) => {
+				keywordObject['simplyfiedTitle'] = keywordObject.title.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+				return keywordObject 
+			})
 			return schedule
 		})
 
