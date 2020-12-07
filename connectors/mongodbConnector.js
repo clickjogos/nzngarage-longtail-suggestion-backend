@@ -264,7 +264,7 @@ exports.updateMany = async (payload, upsert = true) =>{
     }
 }
 
-exports.updateManyById = async (payload) => {
+exports.updateManyByField = async (payload,fieldName) => {
     try {
         let {
             collection,
@@ -274,7 +274,9 @@ exports.updateManyById = async (payload) => {
         let target = instance.collection(collection)
         var bulk = target.initializeOrderedBulkOp()
         documents.forEach(function (item) {
-            bulk.find( { _id: item._id } ).replaceOne(item);
+            let findObject = {}
+            findObject[fieldName] = item[fieldName]
+            bulk.find( findObject ).replaceOne(item);
         })
         return await bulk.execute()
     } catch (error) {

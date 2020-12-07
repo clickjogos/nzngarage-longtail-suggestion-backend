@@ -34,10 +34,10 @@ function updateScheduledDates() {
             return schedule
         })
 
-        await mongdbConnector.updateManyById({
+        await mongdbConnector.updateManyByField({
             collection:"week-plans",
             documents:objectsToUpdate
-        })
+        },'_id')
         
     })
 }

@@ -219,8 +219,17 @@ async function updateWeeklySchedule(params) {
 		let mapResult = schedulesToUpdate.map(async (scheduleToUpdate) => {
 			let innerMapResult = currentExistingSchedules.map(async (existingSchedule) => {
 				let convertedScheduledDate = new Date(scheduleToUpdate.weekStartDate)
-				if (convertedScheduledDate.toDateString() == existingSchedule.weekStartDate.toDateString())
-					return await reactivateRemovedKeywords(existingSchedule.scheduledKeywords, scheduleToUpdate.scheduledKeywords)
+				if (convertedScheduledDate.toDateString() == existingSchedule.weekStartDate.toDateString()) {
+					// return await reactivateRemovedKeywords(existingSchedule.scheduledKeywords, scheduleToUpdate.scheduledKeywords)
+					scheduleToUpdate.scheduledKeywords = existingSchedule.scheduledKeywords.map(oldKeywordObject => {
+						scheduleToUpdate.scheduledKeywords.map(newKeywordObject => {
+							if ((newKeywordObject.Keyword == oldKeywordObject.Keyword) && (newKeywordObject.competitor == oldKeywordObject.competitor)) {
+								oldKeywordObject = newKeywordObject
+							}
+						})
+						return oldKeywordObject
+					});
+				}
 			})
 			await Promise.all(innerMapResult)
 			await deactivateScheduledKeywordsFromList(scheduleToUpdate.scheduledKeywords)
@@ -229,16 +238,16 @@ async function updateWeeklySchedule(params) {
 		await Promise.all(mapResult)
 
 		schedulesToUpdate = schedulesToUpdate.map((schedule) => {
-			schedule._id = new ObjectID(schedule._id)
+			delete schedule._id
 			schedule.weekStartDate = new Date(schedule.weekStartDate),
 				schedule.lastUpdate = new Date(schedule.lastUpdate)
 			return schedule
 		})
 
-		let dbResult = await mongodbConnector.updateManyById({
+		let dbResult = await mongodbConnector.updateManyByField({
 			collection: "week-plans",
 			documents: schedulesToUpdate
-		})
+		}, "weekStartDate")
 		return dbResult
 
 	} catch (error) {
