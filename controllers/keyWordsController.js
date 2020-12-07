@@ -201,12 +201,40 @@ async function setWeeklySchedule(params) {
 async function updateWeeklySchedule(params) {
 	try {
 		let schedulesToUpdate = params.schedule
+
+
+		let weekStartDateList = schedulesToUpdate.map(scheduleObject => {
+			return new Date(scheduleObject.weekStartDate)
+		});
+
+		let currentExistingSchedules = await mongodbConnector.findAll({
+			collection: "week-plans",
+			query: {
+				"weekStartDate": {
+					"$in": weekStartDateList
+				}
+			}
+		})
+
+		let mapResult = schedulesToUpdate.map(async (scheduleToUpdate) => {
+			let innerMapResult = currentExistingSchedules.map(async (existingSchedule) => {
+				let convertedScheduledDate = new Date(scheduleToUpdate.weekStartDate)
+				if (convertedScheduledDate.toDateString() == existingSchedule.weekStartDate.toDateString())
+					return await reactivateRemovedKeywords(existingSchedule.scheduledKeywords, scheduleToUpdate.scheduledKeywords)
+			})
+			await Promise.all(innerMapResult)
+			await deactivateScheduledKeywordsFromList(scheduleToUpdate.scheduledKeywords)
+		});
+
+		await Promise.all(mapResult)
+
 		schedulesToUpdate = schedulesToUpdate.map((schedule) => {
 			schedule._id = new ObjectID(schedule._id)
 			schedule.weekStartDate = new Date(schedule.weekStartDate),
 				schedule.lastUpdate = new Date(schedule.lastUpdate)
 			return schedule
 		})
+
 		let dbResult = await mongodbConnector.updateManyById({
 			collection: "week-plans",
 			documents: schedulesToUpdate
@@ -296,7 +324,7 @@ function updateKeywordsWithFilterSignal(scheduleList, params) {
 		titleRegex = new RegExp(reducedTitleFilter, 'i')
 	}
 
-	
+
 
 	let updatedScheduleList = scheduleList.map(schedule => {
 		schedule.scheduledKeywords = schedule.scheduledKeywords.map((keywordObject) => {
@@ -310,7 +338,7 @@ function updateKeywordsWithFilterSignal(scheduleList, params) {
 					keywordObject['filter'] = true;
 				}
 			}
-			if(params.tag){
+			if (params.tag) {
 				if (keywordObject.tag.match(params.tag)) {
 					keywordObject['filter'] = true;
 				}
@@ -396,7 +424,7 @@ function getCurrentWeekStartDate() {
 	let currentWeekStartDate = new Date()
 	let weekdayNumber = currentDate.getDay()
 	//remove an extra day for timezone differences
-	currentWeekStartDate.setDate(currentDate.getDate() - (weekdayNumber+1)) 
+	currentWeekStartDate.setDate(currentDate.getDate() - (weekdayNumber + 1))
 	currentWeekStartDate.setHours(0, 0, 0, 0);
 	return currentWeekStartDate
 }
