@@ -57,7 +57,37 @@ async function getDateOnDateFormat(date) {
 	}
 }
 
+//setDateIntervalFilters receives two date strings in the YYYY-MM-DD format and returns a mongo-formated date filter
+function setDateIntervalFilter(startDate, endDate) {
+	try {
+		var startDateFilter = new Date(startDate)
+		var endDateFilter = new Date(endDate)
+		startDateFilter.setHours(0, 0, 0, 0)
+		endDateFilter.setHours(23, 59, 59, 999)
+		let filterObject = {
+			$gt: startDateFilter,
+			$lte: endDateFilter,
+		}
+		return filterObject
+	} catch (error) {
+		throw new Error('Invalid date format for parameters\nERROR:\n' + JSON.stringify(error))
+	}
+}
+
+
+function getCurrentWeekStartDate() {
+	let currentDate = new Date()
+	let currentWeekStartDate = new Date()
+	let weekdayNumber = currentDate.getDay()
+	//remove an extra day for timezone differences
+	currentWeekStartDate.setDate(currentDate.getDate() - (weekdayNumber + 1))
+	currentWeekStartDate.setHours(0, 0, 0, 0)
+	return currentWeekStartDate
+}
+
 module.exports = {
 	getDateOnStringFormat,
-	getDateOnDateFormat
+	getDateOnDateFormat,
+	setDateIntervalFilter,
+	getCurrentWeekStartDate
 }

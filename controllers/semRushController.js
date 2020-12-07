@@ -4,8 +4,8 @@ const csvtojson = require('csvtojson')
 
 const { saveMultiple, find, findAll, deleteMany } = require('../connectors/mongodbConnector')
 
-// const semRushCollection = 'semrush-results'
-const semRushCollection = 'teste-api'
+const semRushCollection = 'semrush-results'
+// const semRushCollection = 'teste-api'
 
 const limitCompetitorPosition = 4
 const semRushLimitRows = 2

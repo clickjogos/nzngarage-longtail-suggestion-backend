@@ -1,23 +1,39 @@
-const { findAll, find } = require("../connectors/mongodbConnector.js");
+const { findAll, find, list } = require("../connectors/mongodbConnector.js");
+const { setDateIntervalFilter, getCurrentWeekStartDate } = require('../utils/utils')
 
+const collection_tags = 'tags'
+const collection_weekPlans = 'week-plans'
 
 // getTagsList - Recover all the possible values for Tag or only those in use 
 async function getTagsList(params) {
 	try {
+		let mongoSearchObject = {			
+			query: {}
+		}
+		//if the user specify intervals, retrieve every object in that date interval
+		if (params.startDate && params.endDate) {
+			mongoSearchObject.query['weekStartDate'] = await setDateIntervalFilter(params.startDate, params.endDate)
+		}
+		//if date not specified, get for the current week
+		else {
+			let weekStartDate = await getCurrentWeekStartDate()
+			mongoSearchObject.query['weekStartDate'] = {
+				$gt: weekStartDate,
+			}
+		}
 
 		let tagsList = []
 		if( !params.filter ) {
 			let mongoResponse = await findAll({
-				collection: 'tags',
+				collection: collection_tags
 			})
 
 			tagsList = mongoResponse[0].tags
 		} else {
+			mongoSearchObject.query['scheduledKeywords'] = { $exists: true }
 			let scheduleList = await find({
-				collection: 'week-plans',
-				query: { 
-					scheduledKeywords: { $exists: true }
-				},
+				collection: collection_weekPlans,
+				query: mongoSearchObject.query,
 				fieldsToShow: {
 					'scheduledKeywords.tag': 1
 				}
