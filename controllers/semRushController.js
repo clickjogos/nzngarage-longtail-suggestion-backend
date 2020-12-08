@@ -8,7 +8,7 @@ const semRushCollection = 'semrush-results'
 // const semRushCollection = 'teste-api'
 
 const limitCompetitorPosition = 4
-const semRushLimitRows = 2
+const semRushLimitRows = 10000
 
 /* only for tests */
 let mockConfigJson1 = require('../mockFiles/semRush/mockConfig-group1.json')
