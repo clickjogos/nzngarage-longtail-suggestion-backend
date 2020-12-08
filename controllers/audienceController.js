@@ -4,6 +4,8 @@ const mssqlConnector = require('../connectors/mssqlConnector')
 const { find, aggregate } = require('../connectors/mongodbConnector')
 const { getDateOnStringFormat } = require('../utils/utils')
 
+const collection_weekPlans = 'week-plans'
+
 async function execute(params) {
 	try {
 		let dateObject = await defineDateFilters(params)
@@ -96,7 +98,7 @@ async function recoverArticlesIds(dateObject) {
 		]
 
 		let schedulePlans = await aggregate({
-			collection: 'week-plans',
+			collection: collection_weekPlans,
 			pipelinesStages: pipelinesStages,
 			fieldsToShow: {
 				'scheduledKeywords.articleId': 1,

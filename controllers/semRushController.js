@@ -1,6 +1,6 @@
 const csvtojson = require('csvtojson')
 
-// const { domainVsDomains, organicResults } = require('../connectors/semRushConnector')
+const { domainVsDomains, organicResults } = require('../connectors/semRushConnector')
 
 const { saveMultiple, find, findAll, deleteMany } = require('../connectors/mongodbConnector')
 

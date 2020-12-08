@@ -23,29 +23,51 @@ async function getTagsList(params) {
 		}
 
 		let tagsList = []
-		if( !params.filter ) {
+		let scheduleList
+		if( !params.filter  ) {
 			let mongoResponse = await findAll({
 				collection: collection_tags
 			})
-
 			tagsList = mongoResponse[0].tags
-		} else {
-			mongoSearchObject.query['scheduledKeywords'] = { $exists: true }
-			let scheduleList = await find({
+		}
+		else if(params.audience) {
+			if( !params.startDate || !params.endDate) delete mongoSearchObject.query.weekStartDate
+			mongoSearchObject.query['scheduledKeywords'] = { $elemMatch: { 'articleId': {$exists: true} }  }
+			scheduleList = await find({
 				collection: collection_weekPlans,
 				query: mongoSearchObject.query,
 				fieldsToShow: {
 					'scheduledKeywords.tag': 1
 				}
 			})
-
 			scheduleList.map( schedule =>{
 				schedule.scheduledKeywords.map( row=>{
 					var tagIndex = tagsList.indexOf(row.tag)
 					if( tagIndex === -1 ) tagsList.push(row.tag)
-				})
-			} )
+					})
+				} )
+			
 		}
+		else {
+			mongoSearchObject.query['scheduledKeywords'] = { $exists: true }			
+				scheduleList = await find({
+					collection: collection_weekPlans,
+					query: mongoSearchObject.query,
+					fieldsToShow: {
+						'scheduledKeywords.tag': 1
+					}
+				})
+				scheduleList.map( schedule =>{
+					schedule.scheduledKeywords.map( row=>{
+						var tagIndex = tagsList.indexOf(row.tag)
+						if( tagIndex === -1 ) tagsList.push(row.tag)
+						})
+					} )
+				
+		}
+			
+
+		
 	
 
 		return tagsList
