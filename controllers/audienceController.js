@@ -11,9 +11,8 @@ async function execute(params) {
 		let dateObject = await defineDateFilters(params)
 
 		var connectionPool = await mssqlConnector.SLQConnection()
-		// var connectionPool = ''
 
-		let articles = await recoverArticlesIds(dateObject.dateFormat)
+		let articles = await recoverArticlesIds(dateObject.dateFormat, params.tag)
 
 		let rawArticlesAudienceValues = await queryArticlesInSQL(connectionPool, articles.articlesIdsArray, dateObject.stringFormat)
 
@@ -65,7 +64,7 @@ async function defineDateFilters(params) {
 	}
 }
 
-async function recoverArticlesIds(dateObject) {
+async function recoverArticlesIds(dateObject, tag) {
 	try {
 
 		let pipelinesStages = [
@@ -87,6 +86,7 @@ async function recoverArticlesIds(dateObject) {
 						$gt: dateObject.startDate,
 						$lte: dateObject.endDate,
 					},
+					'scheduledKeywords.articleId' : { '$exists': true}
 				},
 			},
 			{
@@ -96,6 +96,10 @@ async function recoverArticlesIds(dateObject) {
 				},
 			},
 		]
+
+		if(tag) {
+			pipelinesStages[2]['$match']['scheduledKeywords.tag'] = tag
+		}
 
 		let schedulePlans = await aggregate({
 			collection: collection_weekPlans,
@@ -111,7 +115,7 @@ async function recoverArticlesIds(dateObject) {
 		})
 
 		if (schedulePlans.length > 0) {
-			let articlesIdsArray = [] // [207361,205760,205970,205176,177783,177216]
+			let articlesIdsArray = [] 
 			let articlesDetails = []
 			schedulePlans.map((plan) => {
 				plan.scheduledKeywords.map((keyword) => {
